@@ -3,7 +3,7 @@ module github.com/amnezia-vpn/amneziawg-apple
 go 1.22.3
 
 require (
-	github.com/amnezia-vpn/amneziawg-go v0.2.9
+	github.com/amnezia-vpn/amneziawg-go v0.2.11
 	golang.org/x/sys v0.18.0
 )
 
