@@ -20,4 +20,15 @@ extern void wgBumpSockets(int handle);
 extern void wgDisableSomeRoamingForBrokenMobileSemantics(int handle);
 extern const char *wgVersion();
 
+
+extern char *LibXrayCutGeoData(const char *datDir, const char *dstDir, const char *cutCodePath);
+extern char *LibXrayLoadGeoData(const char *datDir, const char *name, const char *geoType);
+extern char *LibXrayPing(const char *datDir, const char *configPath, int timeout, const char *url, const char *proxy);
+extern char *LibXrayQueryStats(const char *server, const char *dir);
+extern char *LibXrayCustomUUID(const char *text);
+extern char *LibXrayTestXray(const char *datDir, const char *configPath);
+extern char *LibXrayRunXray(const char *datDir, const char *configPath, int64_t maxMemory);
+extern char *LibXrayStopXray();
+extern char *LibXrayXrayVersion();
+
 #endif
