@@ -134,10 +134,111 @@ class TunnelsListTableViewController: UIViewController {
         }
     }
 
+    // Automatically detects links in the provided text
+    private func detectLinksInText(_ text: String) -> String {
+        // Regex pattern to detect URLs (e.g., http:// or https://)
+        let regex = try? NSRegularExpression(pattern: "(https?://[a-zA-Z0-9./?&=_-]+)", options: .caseInsensitive)
+        let matches = regex?.matches(in: text, options: [], range: NSRange(location: 0, length: text.count))
+
+        var resultText = text
+        matches?.forEach { match in
+            if let range = Range(match.range, in: text) {
+                let urlString = String(text[range])
+                // No need to wrap URL in < >
+                resultText = resultText.replacingCharacters(in: range, with: urlString)
+            }
+        }
+
+        return resultText
+    }
+
+    // Creates an NSAttributedString from the provided text with detected links
+    private func createAttributedString(from text: String) -> NSAttributedString {
+        let attributedText = NSMutableAttributedString(string: text)
+
+        // Regex pattern to find and remove the http:// or https:// part from the URL
+        let pattern = "(https?://)([a-zA-Z0-9./?&=_-]+)" // Match protocol part and URL part
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+            let matches = regex.matches(in: text, options: [], range: NSRange(location: 0, length: text.count))
+
+            matches.forEach { match in
+                if let range = Range(match.range(at: 2), in: text) { // The second capturing group is the actual URL after removing the protocol part
+                    var urlString = String(text[range])  // Extract the URL without the protocol
+
+                    // Ensure that the URL has the correct protocol before passing to URL object
+                    if !urlString.hasPrefix("http://") && !urlString.hasPrefix("https://") {
+                        urlString = "https://" + urlString  // Prepend https:// if missing
+                    }
+
+                    // Create a URL object with the corrected protocol
+                    if let url = URL(string: urlString) {
+                        // Set the link attribute for the matched URL
+                        attributedText.addAttribute(.link, value: urlString, range: match.range) // Apply the link to the actual URL part
+                        attributedText.addAttribute(.foregroundColor, value: UIColor.blue, range: match.range) // Color for the link
+                    }
+                }
+            }
+        }
+        return attributedText
+    }
+
+    private func createTextView(with attributedText: NSAttributedString) -> UITextView {
+        // Create a UITextView to display the tappable attributed string (this allows us to handle taps)
+        let messageTextView = UITextView()
+        messageTextView.isEditable = false
+        messageTextView.isSelectable = true
+        messageTextView.attributedText = attributedText
+
+        // Enable link detection
+        messageTextView.dataDetectorTypes = .link // Enable URL detection
+        messageTextView.isUserInteractionEnabled = true // Allow interaction with links
+
+        // Styling to make it resemble alert message formatting
+        messageTextView.font = UIFont.preferredFont(forTextStyle: .body) // Similar to alert message font
+        messageTextView.textColor = UIColor.label // Default text color for iOS messages
+        messageTextView.backgroundColor = UIColor.clear // Make the background transparent to look like a message
+        messageTextView.textContainerInset = UIEdgeInsets(top: 0, left: 12, bottom: 0, right: 12) // Add padding for the text
+
+        // Set Auto Layout properties
+        messageTextView.textAlignment = .center
+        messageTextView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Return the configured UITextView
+        return messageTextView
+    }
+
     @objc func addButtonTapped(sender: AnyObject) {
         guard tunnelsManager != nil else { return }
+        let alert = UIAlertController(title: "", message: "", preferredStyle: .actionSheet)
 
-        let alert = UIAlertController(title: "", message: tr("addTunnelMenuHeader"), preferredStyle: .actionSheet)
+        // Automatically detect and convert links in the header text
+        var menuHeader = tr("addTunnelMenuHeader")
+        menuHeader = detectLinksInText(menuHeader)
+
+        // Create an NSAttributedString from the processed text
+        let attributedText = createAttributedString(from: menuHeader)
+
+        // Create a UITextView to display the tappable attributed string (this allows us to handle taps)
+        let messageTextView = createTextView(with: attributedText)
+
+        // Set Auto Layout properties
+        messageTextView.textAlignment = .center
+        messageTextView.translatesAutoresizingMaskIntoConstraints = false
+
+        // Add UITextView to the UIAlertController content view
+        let alertContainer = UIViewController()
+        alertContainer.view.addSubview(messageTextView)
+        alert.setValue(alertContainer, forKey: "contentViewController")
+
+        NSLayoutConstraint.activate([
+            messageTextView.topAnchor.constraint(equalTo: alertContainer.view.topAnchor),
+            messageTextView.leadingAnchor.constraint(equalTo: alertContainer.view.leadingAnchor),
+            messageTextView.trailingAnchor.constraint(equalTo: alertContainer.view.trailingAnchor),
+            messageTextView.bottomAnchor.constraint(equalTo: alertContainer.view.bottomAnchor)
+        ])
+
+        messageTextView.sizeToFit()
+
         let importFileAction = UIAlertAction(title: tr("addTunnelMenuImportFile"), style: .default) { [weak self] _ in
             self?.presentViewControllerForFileImport()
         }
