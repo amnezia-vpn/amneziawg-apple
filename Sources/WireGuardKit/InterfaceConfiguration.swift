@@ -12,6 +12,8 @@ public struct InterfaceConfiguration {
     public var junkPacketMaxSize: UInt16?
     public var initPacketJunkSize: UInt16?
     public var responsePacketJunkSize: UInt16?
+    public var s3: UInt16?
+    public var s4: UInt16?
     public var initPacketMagicHeader: UInt32?
     public var responsePacketMagicHeader: UInt32?
     public var underloadPacketMagicHeader: UInt32?
@@ -20,6 +22,15 @@ public struct InterfaceConfiguration {
     public var mtu: UInt16?
     public var dns = [DNSServer]()
     public var dnsSearch = [String]()
+    public var i1: String?
+    public var i2: String?
+    public var i3: String?
+    public var i4: String?
+    public var i5: String?
+    public var j1: String?
+    public var j2: String?
+    public var j3: String?
+    public var itime: Int?
 
     public init(privateKey: PrivateKey) {
         self.privateKey = privateKey

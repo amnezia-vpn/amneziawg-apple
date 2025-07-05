@@ -72,7 +72,34 @@ extension TunnelConfiguration {
                     } else {
                         attributes[key] = value
                     }
-                    let interfaceSectionKeys: Set<String> = ["privatekey", "listenport", "address", "dns", "mtu", "jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4"]
+                    let interfaceSectionKeys: Set<String> = [
+                        "privatekey",
+                        "listenport",
+                        "address",
+                        "dns",
+                        "mtu",
+                        "jc",
+                        "jmin",
+                        "jmax",
+                        "s1",
+                        "s2",
+                        "s3",
+                        "s4",
+                        "h1",
+                        "h2",
+                        "h3",
+                        "h4",
+                        "i1",
+                        "i2",
+                        "i3",
+                        "i4",
+                        "i5",
+                        "j1",
+                        "j2",
+                        "j3",
+                        "itime",
+                    ]
+
                     let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
                     if parserState == .inInterfaceSection {
                         guard interfaceSectionKeys.contains(key) else {
@@ -146,6 +173,12 @@ extension TunnelConfiguration {
         if let responsePacketJunkSize = interface.responsePacketJunkSize {
             output.append("S2 = \(responsePacketJunkSize)\n")
         }
+        if let s3 = interface.s3 {
+            output.append("S3 = \(s3)\n")
+        }
+        if let s4 = interface.s4 {
+            output.append("S4 = \(s4)\n")
+        }
         if let initPacketMagicHeader = interface.initPacketMagicHeader {
             output.append("H1 = \(initPacketMagicHeader)\n")
         }
@@ -154,6 +187,36 @@ extension TunnelConfiguration {
         }
         if let underloadPacketMagicHeader = interface.underloadPacketMagicHeader {
             output.append("H3 = \(underloadPacketMagicHeader)\n")
+        }
+        if let transportPacketMagicHeader = interface.transportPacketMagicHeader {
+            output.append("H4 = \(transportPacketMagicHeader)\n")
+        }
+        if let i1 = interface.i1 {
+            output.append("I1 = \(i1)\n")
+        }
+        if let i2 = interface.i2 {
+            output.append("I2 = \(i2)\n")
+        }
+        if let i3 = interface.i3 {
+            output.append("I3 = \(i3)\n")
+        }
+        if let i4 = interface.i4 {
+            output.append("I4 = \(i4)\n")
+        }
+        if let i5 = interface.i5 {
+            output.append("I5 = \(i5)\n")
+        }
+        if let j1 = interface.j1 {
+            output.append("J1 = \(j1)\n")
+        }
+        if let j2 = interface.j2 {
+            output.append("J2 = \(j2)\n")
+        }
+        if let j3 = interface.j3 {
+            output.append("J3 = \(j3)\n")
+        }
+        if let transportPacketMagicHeader = interface.transportPacketMagicHeader {
+            output.append("Itime = \(transportPacketMagicHeader)\n")
         }
         if let transportPacketMagicHeader = interface.transportPacketMagicHeader {
             output.append("H4 = \(transportPacketMagicHeader)\n")
