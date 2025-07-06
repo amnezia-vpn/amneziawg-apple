@@ -72,7 +72,33 @@ extension TunnelConfiguration {
                     } else {
                         attributes[key] = value
                     }
-                    let interfaceSectionKeys: Set<String> = ["privatekey", "listenport", "address", "dns", "mtu", "jc", "jmin", "jmax", "s1", "s2", "h1", "h2", "h3", "h4"]
+                    let interfaceSectionKeys: Set<String> = [
+                        "privatekey",
+                        "listenport",
+                        "address",
+                        "dns",
+                        "mtu",
+                        "jc",
+                        "jmin",
+                        "jmax",
+                        "s1",
+                        "s2",
+                        "s3",
+                        "s4",
+                        "h1",
+                        "h2",
+                        "h3",
+                        "h4",
+                        "i1",
+                        "i2",
+                        "i3",
+                        "i4",
+                        "i5",
+                        "j1",
+                        "j2",
+                        "j3",
+                        "itime",
+                    ]
                     let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
                     if parserState == .inInterfaceSection {
                         guard interfaceSectionKeys.contains(key) else {
@@ -146,6 +172,12 @@ extension TunnelConfiguration {
         if let responsePacketJunkSize = interface.responsePacketJunkSize {
             output.append("S2 = \(responsePacketJunkSize)\n")
         }
+        if let cookieReplyPacketJunkSize = interface.cookieReplyPacketJunkSize {
+            output.append("S3 = \(cookieReplyPacketJunkSize)\n")
+        }
+        if let transportPacketJunkSize = interface.transportPacketJunkSize {
+            output.append("S4 = \(transportPacketJunkSize)\n")
+        }
         if let initPacketMagicHeader = interface.initPacketMagicHeader {
             output.append("H1 = \(initPacketMagicHeader)\n")
         }
@@ -157,6 +189,33 @@ extension TunnelConfiguration {
         }
         if let transportPacketMagicHeader = interface.transportPacketMagicHeader {
             output.append("H4 = \(transportPacketMagicHeader)\n")
+        }
+        if let specialJunk1 = interface.specialJunk1 {
+            output.append("I1 = \(specialJunk1)\n")
+        }
+        if let specialJunk2 = interface.specialJunk2 {
+            output.append("I2 = \(specialJunk2)\n")
+        }
+        if let specialJunk3 = interface.specialJunk3 {
+            output.append("I3 = \(specialJunk3)\n")
+        }
+        if let specialJunk4 = interface.specialJunk4 {
+            output.append("I4 = \(specialJunk4)\n")
+        }
+        if let specialJunk5 = interface.specialJunk5 {
+            output.append("I5 = \(specialJunk5)\n")
+        }
+        if let controlledJunk1 = interface.controlledJunk1 {
+            output.append("J1 = \(controlledJunk1)\n")
+        }
+        if let controlledJunk2 = interface.controlledJunk2 {
+            output.append("J2 = \(controlledJunk2)\n")
+        }
+        if let controlledJunk3 = interface.controlledJunk3 {
+            output.append("J3 = \(controlledJunk3)\n")
+        }
+        if let specialHandshakeTimeout = interface.specialHandshakeTimeout {
+            output.append("Itime = \(specialHandshakeTimeout)\n")
         }
         if !interface.addresses.isEmpty {
             let addressString = interface.addresses.map { $0.stringRepresentation }.joined(separator: ", ")
@@ -266,6 +325,18 @@ extension TunnelConfiguration {
             }
             interface.responsePacketJunkSize = responsePacketJunkSize
         }
+        if let cookieReplyPacketJunkSizeString = attributes["s3"] {
+            guard let cookieReplyPacketJunkSize = UInt16(cookieReplyPacketJunkSizeString) else {
+                throw ParseError.interfaceHasInvalidCustomParam(cookieReplyPacketJunkSizeString)
+            }
+            interface.cookieReplyPacketJunkSize = cookieReplyPacketJunkSize
+        }
+        if let transportPacketJunkSizeString = attributes["s4"] {
+            guard let transportPacketJunkSize = UInt16(transportPacketJunkSizeString) else {
+                throw ParseError.interfaceHasInvalidCustomParam(transportPacketJunkSizeString)
+            }
+            interface.transportPacketJunkSize = transportPacketJunkSize
+        }
         if let initPacketMagicHeaderString = attributes["h1"] {
             guard let initPacketMagicHeader = UInt32(initPacketMagicHeaderString) else {
                 throw ParseError.interfaceHasInvalidCustomParam(initPacketMagicHeaderString)
@@ -289,6 +360,36 @@ extension TunnelConfiguration {
                 throw ParseError.interfaceHasInvalidCustomParam(transportPacketMagicHeaderString)
             }
             interface.transportPacketMagicHeader = transportPacketMagicHeader
+        }
+        if let specialJunk1String = attributes["i1"] {
+            interface.specialJunk1 = specialJunk1String
+        }
+        if let specialJunk2String = attributes["i2"] {
+            interface.specialJunk2 = specialJunk2String
+        }
+        if let specialJunk3String = attributes["i3"] {
+            interface.specialJunk3 = specialJunk3String
+        }
+        if let specialJunk4String = attributes["i4"] {
+            interface.specialJunk4 = specialJunk4String
+        }
+        if let specialJunk5String = attributes["i5"] {
+            interface.specialJunk5 = specialJunk5String
+        }
+        if let controlledJunk1String = attributes["j1"] {
+            interface.controlledJunk1 = controlledJunk1String
+        }
+        if let controlledJunk2String = attributes["j2"] {
+            interface.controlledJunk2 = controlledJunk2String
+        }
+        if let controlledJunk3String = attributes["j3"] {
+            interface.controlledJunk3 = controlledJunk3String
+        }
+        if let specialHandshakeTimeoutString = attributes["itime"] {
+            guard let specialHandshakeTimeout = Int(specialHandshakeTimeoutString) else {
+                throw ParseError.interfaceHasInvalidCustomParam(specialHandshakeTimeoutString)
+            }
+            interface.specialHandshakeTimeout = specialHandshakeTimeout
         }
         return interface
     }

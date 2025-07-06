@@ -24,6 +24,17 @@ class TunnelViewModel {
         case responsePacketMagicHeader
         case underloadPacketMagicHeader
         case transportPacketMagicHeader
+        case cookieReplyPacketJunkSize
+        case transportPacketJunkSize
+        case specialJunk1
+        case specialJunk2
+        case specialJunk3
+        case specialJunk4
+        case specialJunk5
+        case controlledJunk1
+        case controlledJunk2
+        case controlledJunk3
+        case specialHandshakeTimeout
 
         var localizedUIString: String {
             switch self {
@@ -46,6 +57,17 @@ class TunnelViewModel {
             case .responsePacketMagicHeader: return tr("H2")
             case .underloadPacketMagicHeader: return tr("H3")
             case .transportPacketMagicHeader: return tr("H4")
+            case .cookieReplyPacketJunkSize: return tr("S3")
+            case .transportPacketJunkSize: return tr("S4")
+            case .specialJunk1: return tr("I1")
+            case .specialJunk2: return tr("I2")
+            case .specialJunk3: return tr("I3")
+            case .specialJunk4: return tr("I4")
+            case .specialJunk5: return tr("I5")
+            case .controlledJunk1: return tr("J1")
+            case .controlledJunk2: return tr("J2")
+            case .controlledJunk3: return tr("J3")
+            case .specialHandshakeTimeout: return tr("Itime")
             }
         }
     }
@@ -202,6 +224,52 @@ class TunnelViewModel {
                 scratchpad[.transportPacketMagicHeader] = String(transportPacketMagicHeader)
             }
 
+            if let cookieReplyPacketJunkSize = config.cookieReplyPacketJunkSize {
+                scratchpad[.cookieReplyPacketJunkSize] = String(cookieReplyPacketJunkSize)
+            }
+
+            if let transportPacketJunkSize = config.transportPacketJunkSize {
+                scratchpad[.transportPacketJunkSize] = String(transportPacketJunkSize)
+            }
+
+            if let specialJunk1 = config.specialJunk1 {
+                scratchpad[.specialJunk1] = String(specialJunk1)
+            }
+
+            if let specialJunk2 = config.specialJunk2 {
+                scratchpad[.specialJunk2] = String(specialJunk2)
+            }
+
+            if let specialJunk3 = config.specialJunk3 {
+                scratchpad[.specialJunk3] = String(specialJunk3)
+            }
+
+            if let specialJunk4 = config.specialJunk4 {
+                scratchpad[.specialJunk4] = String(specialJunk4)
+            }
+
+            if let specialJunk5 = config.specialJunk5 {
+                scratchpad[.specialJunk5] = String(specialJunk5)
+            }
+
+            if let controlledJunk1 = config.controlledJunk1 {
+                scratchpad[.controlledJunk1] = String(controlledJunk1)
+            }
+
+            if let controlledJunk2 = config.controlledJunk2 {
+                scratchpad[.controlledJunk2] = String(controlledJunk2)
+            }
+
+            if let controlledJunk3 = config.controlledJunk3 {
+                scratchpad[.controlledJunk3] = String(controlledJunk3)
+            }
+
+            if let specialHandshakeTimeout = config.specialHandshakeTimeout {
+                scratchpad[.specialHandshakeTimeout] = String(specialHandshakeTimeout)
+            }
+
+
+
             return scratchpad
         }
 
@@ -337,6 +405,88 @@ class TunnelViewModel {
                 fieldsWithError.insert(.transportPacketMagicHeader)
                 errorMessages.append(tr("alertInvalidInterfaceMessageTransportPacketMagicHeaderInvalid"))
             }
+
+            if let cookieReplyPacketJunkSizeString = scratchpad[.cookieReplyPacketJunkSize],
+               let cookieReplyPacketJunkSize = UInt16(cookieReplyPacketJunkSizeString) {
+                config.cookieReplyPacketJunkSize = cookieReplyPacketJunkSize
+            } else {
+                fieldsWithError.insert(.cookieReplyPacketJunkSize)
+                errorMessages.append(tr("alertInvalidInterfaceMessageCookieReplyPacketJunkSizeInvalid"))
+            }
+
+            if let transportPacketJunkSizeString = scratchpad[.transportPacketJunkSize],
+               let transportPacketJunkSize = UInt16(transportPacketJunkSizeString) {
+                config.transportPacketJunkSize = transportPacketJunkSize
+            } else {
+                fieldsWithError.insert(.transportPacketJunkSize)
+                errorMessages.append(tr("alertInvalidInterfaceMessageTransportPacketJunkSizeInvalid"))
+            }
+
+            if let specialJunk1String = scratchpad[.specialJunk1] {
+                config.specialJunk1 = specialJunk1String
+            } else {
+                fieldsWithError.insert(.specialJunk1)
+                errorMessages.append(tr("alertInvalidInterfaceMessageSpecialJunk1Invalid"))
+            }
+
+            if let specialJunk2String = scratchpad[.specialJunk2] {
+                config.specialJunk2 = specialJunk2String
+            } else {
+                fieldsWithError.insert(.specialJunk2)
+                errorMessages.append(tr("alertInvalidInterfaceMessageSpecialJunk2Invalid"))
+            }
+
+            if let specialJunk3String = scratchpad[.specialJunk3] {
+                config.specialJunk3 = specialJunk3String
+            } else {
+                fieldsWithError.insert(.specialJunk3)
+                errorMessages.append(tr("alertInvalidInterfaceMessageSpecialJunk3Invalid"))
+            }
+
+            if let specialJunk4String = scratchpad[.specialJunk4] {
+                config.specialJunk4 = specialJunk4String
+            } else {
+                fieldsWithError.insert(.specialJunk4)
+                errorMessages.append(tr("alertInvalidInterfaceMessageSpecialJunk4Invalid"))
+            }
+
+            if let specialJunk5String = scratchpad[.specialJunk5] {
+                config.specialJunk5 = specialJunk5String
+            } else {
+                fieldsWithError.insert(.specialJunk5)
+                errorMessages.append(tr("alertInvalidInterfaceMessageSpecialJunk5Invalid"))
+            }
+
+            if let controlledJunk1String = scratchpad[.controlledJunk1] {
+                config.controlledJunk1 = controlledJunk1String
+            } else {
+                fieldsWithError.insert(.controlledJunk1)
+                errorMessages.append(tr("alertInvalidInterfaceMessageControlledJunk1Invalid"))
+            }
+
+            if let controlledJunk2String = scratchpad[.controlledJunk2] {
+                config.controlledJunk2 = controlledJunk2String
+            } else {
+                fieldsWithError.insert(.controlledJunk2)
+                errorMessages.append(tr("alertInvalidInterfaceMessageControlledJunk2Invalid"))
+            }
+
+            if let controlledJunk3String = scratchpad[.controlledJunk3] {
+                config.controlledJunk3 = controlledJunk3String
+            } else {
+                fieldsWithError.insert(.controlledJunk3)
+                errorMessages.append(tr("alertInvalidInterfaceMessageControlledJunk3Invalid"))
+            }
+
+            if let specialHandshakeTimeoutString = scratchpad[.specialHandshakeTimeout],
+               let specialHandshakeTimeout = Int(specialHandshakeTimeoutString) {
+                config.specialHandshakeTimeout = specialHandshakeTimeout
+            } else {
+                fieldsWithError.insert(.specialHandshakeTimeout)
+                errorMessages.append(tr("alertInvalidInterfaceMessageSpecialHandshakeTimeoutInvalid"))
+            }
+
+
 
             guard errorMessages.isEmpty else { return .error(errorMessages.first!) }
 

@@ -63,6 +63,12 @@ class PacketTunnelSettingsGenerator {
         if let responsePacketJunkSize = tunnelConfiguration.interface.responsePacketJunkSize {
             wgSettings.append("s2=\(responsePacketJunkSize)\n")
         }
+        if let cookieReplyPacketJunkSize = tunnelConfiguration.interface.cookieReplyPacketJunkSize {
+            wgSettings.append("s3=\(cookieReplyPacketJunkSize)\n")
+        }
+        if let transportPacketJunkSize = tunnelConfiguration.interface.transportPacketJunkSize {
+            wgSettings.append("s4=\(transportPacketJunkSize)\n")
+        }
         if let initPacketMagicHeader = tunnelConfiguration.interface.initPacketMagicHeader {
             wgSettings.append("h1=\(initPacketMagicHeader)\n")
         }
@@ -74,6 +80,33 @@ class PacketTunnelSettingsGenerator {
         }
         if let transportPacketMagicHeader = tunnelConfiguration.interface.transportPacketMagicHeader {
             wgSettings.append("h4=\(transportPacketMagicHeader)\n")
+        }
+        if let specialJunk1 = tunnelConfiguration.interface.specialJunk1 {
+            wgSettings.append("i1=\(specialJunk1)\n")
+        }
+        if let specialJunk2 = tunnelConfiguration.interface.specialJunk2 {
+            wgSettings.append("i2=\(specialJunk2)\n")
+        }
+        if let specialJunk3 = tunnelConfiguration.interface.specialJunk3 {
+            wgSettings.append("i3=\(specialJunk3)\n")
+        }
+        if let specialJunk4 = tunnelConfiguration.interface.specialJunk4 {
+            wgSettings.append("i4=\(specialJunk4)\n")
+        }
+        if let specialJunk5 = tunnelConfiguration.interface.specialJunk5 {
+            wgSettings.append("i5=\(specialJunk5)\n")
+        }
+        if let controlledJunk1 = tunnelConfiguration.interface.controlledJunk1 {
+            wgSettings.append("j1=\(controlledJunk1)\n")
+        }
+        if let controlledJunk2 = tunnelConfiguration.interface.controlledJunk2 {
+            wgSettings.append("j2=\(controlledJunk2)\n")
+        }
+        if let controlledJunk3 = tunnelConfiguration.interface.controlledJunk3 {
+            wgSettings.append("j3=\(controlledJunk3)\n")
+        }
+        if let specialHandshakeTimeout = tunnelConfiguration.interface.specialHandshakeTimeout {
+            wgSettings.append("itime=\(specialHandshakeTimeout)\n")
         }
         if !tunnelConfiguration.peers.isEmpty {
             wgSettings.append("replace_peers=true\n")

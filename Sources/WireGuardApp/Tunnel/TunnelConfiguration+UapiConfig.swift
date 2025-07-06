@@ -85,6 +85,17 @@ extension TunnelConfiguration {
         interfaceConfiguration?.responsePacketMagicHeader = base?.interface.responsePacketMagicHeader
         interfaceConfiguration?.underloadPacketMagicHeader = base?.interface.underloadPacketMagicHeader
         interfaceConfiguration?.transportPacketMagicHeader = base?.interface.transportPacketMagicHeader
+        interfaceConfiguration?.cookieReplyPacketJunkSize = base?.interface.cookieReplyPacketJunkSize
+        interfaceConfiguration?.transportPacketJunkSize = base?.interface.transportPacketJunkSize
+        interfaceConfiguration?.specialJunk1 = base?.interface.specialJunk1
+        interfaceConfiguration?.specialJunk2 = base?.interface.specialJunk2
+        interfaceConfiguration?.specialJunk3 = base?.interface.specialJunk3
+        interfaceConfiguration?.specialJunk4 = base?.interface.specialJunk4
+        interfaceConfiguration?.specialJunk5 = base?.interface.specialJunk5
+        interfaceConfiguration?.controlledJunk1 = base?.interface.controlledJunk1
+        interfaceConfiguration?.controlledJunk2 = base?.interface.controlledJunk2
+        interfaceConfiguration?.controlledJunk3 = base?.interface.controlledJunk3
+        interfaceConfiguration?.specialHandshakeTimeout = base?.interface.specialHandshakeTimeout
 
         if let interfaceConfiguration = interfaceConfiguration {
             self.init(name: base?.name, interface: interfaceConfiguration, peers: peerConfigurations)
