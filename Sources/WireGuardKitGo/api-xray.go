@@ -1,9 +1,24 @@
 package main
 
+/*
+#include <stdint.h>
+#include <stdlib.h>
+
+typedef void (*libxray_sockcallback)(uintptr_t fd, void* ctx);
+static inline void libxray_invokesockcallback(libxray_sockcallback cb, uintptr_t fd, void* ctx)
+{
+	cb(fd, ctx);
+}
+
+*/
 import "C"
 import (
+	"syscall"
+	"unsafe"
+
 	"github.com/amnezia-vpn/amnezia-libxray/nodep"
 	"github.com/amnezia-vpn/amnezia-libxray/xray"
+	"github.com/amnezia-vpn/amnezia-xray-core/transport/internet"
 )
 
 // Read geo data and cut the codes we need.
@@ -94,4 +109,19 @@ func LibXrayStopXray() *C.char {
 //export LibXrayXrayVersion
 func LibXrayXrayVersion() *C.char {
 	return C.CString(xray.XrayVersion())
+}
+
+//export LibXraySetSockCallback
+func LibXraySetSockCallback(cb C.libxray_sockcallback, ctx unsafe.Pointer) *C.char {
+	err := internet.RegisterDialerController(func(net, addr string, conn syscall.RawConn) error {
+		conn.Control(func(fd uintptr) {
+			C.libxray_invokesockcallback(cb, C.uintptr_t(fd), ctx)
+		})
+		return nil
+	})
+
+	if err != nil {
+		return C.CString(err.Error())
+	}
+	return nil
 }
