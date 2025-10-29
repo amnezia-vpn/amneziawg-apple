@@ -1,4 +1,4 @@
-// swift-tools-version:5.5
+// swift-tools-version: 5.5
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -25,8 +25,8 @@ let package = Package(
         ),
         .binaryTarget(
             name: "WireGuardFoundation",
-            url: "https://github.com/StarProxima/amneziawg-apple/releases/download/1.0.0/WireGuardFoundation.xcframework.zip",
-            checksum: "b546dc09726f18ea8a59f3c8c3df94825694ff3d5163c477a9f381328f8059c5"
+            url: "https://github.com/StarProxima/amneziawg-apple/releases/download/1.1.0/WireGuardFoundation.xcframework.zip",
+            checksum: "c30371789290f4a07ad7af3d31623332bc10f3eede398432aaad89496e39f0c7"
         )
     ]
 )

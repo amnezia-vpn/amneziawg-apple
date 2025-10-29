@@ -3,7 +3,7 @@
 
 import Foundation
 
-extension TunnelConfiguration {
+public extension TunnelConfiguration {
 
     enum ParserState {
         case inInterfaceSection
