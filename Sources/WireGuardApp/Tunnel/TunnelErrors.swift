@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
 
+import Foundation
 import NetworkExtension
 
 enum TunnelsManagerError: WireGuardAppError {
@@ -53,6 +54,7 @@ enum TunnelsManagerActivationAttemptError: WireGuardAppError {
 enum TunnelsManagerActivationError: WireGuardAppError {
     case activationFailed(wasOnDemandEnabled: Bool)
     case activationFailedWithExtensionError(title: String, message: String, wasOnDemandEnabled: Bool)
+    case handshakeTimedOut(timeout: TimeInterval)
 
     var alertText: AlertText {
         switch self {
@@ -60,6 +62,9 @@ enum TunnelsManagerActivationError: WireGuardAppError {
             return (tr("alertTunnelActivationFailureTitle"), tr("alertTunnelActivationFailureMessage"))
         case .activationFailedWithExtensionError(let title, let message, _):
             return (title, message)
+        case .handshakeTimedOut(let timeout):
+            let seconds = max(1, Int(timeout.rounded()))
+            return (tr("alertTunnelHandshakeTimeoutTitle"), tr(format: "alertTunnelHandshakeTimeoutMessage (%d)", seconds))
         }
     }
 }

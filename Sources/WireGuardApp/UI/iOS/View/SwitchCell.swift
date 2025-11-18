@@ -25,6 +25,7 @@ class SwitchCell: UITableViewCell {
     var statusObservationToken: AnyObject?
     var isOnDemandEnabledObservationToken: AnyObject?
     var hasOnDemandRulesObservationToken: AnyObject?
+    var handshakeStateObservationToken: AnyObject?
 
     let switchView = UISwitch()
 
@@ -52,5 +53,6 @@ class SwitchCell: UITableViewCell {
         statusObservationToken = nil
         isOnDemandEnabledObservationToken = nil
         hasOnDemandRulesObservationToken = nil
+        handshakeStateObservationToken = nil
     }
 }

@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.5
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -35,7 +35,15 @@ let package = Package(
                 "Makefile"
             ],
             publicHeadersPath: ".",
-            linkerSettings: [.linkedLibrary("wg-go")]
+            linkerSettings: [
+                .unsafeFlags(["-L", "Sources/WireGuardKitGo/out"]),
+                .linkedLibrary("wg-go"),
+                .linkedLibrary("resolv")
+            ]
+        ),
+        .testTarget(
+            name: "WireGuardKitTests",
+            dependencies: ["WireGuardKit"]
         )
     ]
 )

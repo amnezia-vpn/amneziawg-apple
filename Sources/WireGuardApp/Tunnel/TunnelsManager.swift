@@ -5,6 +5,30 @@ import Foundation
 import NetworkExtension
 import os.log
 
+#if os(iOS)
+import UIKit
+#endif
+
+#if os(iOS)
+@objc enum TunnelHandshakeState: Int {
+    case idle
+    case waiting
+    case confirmed
+    case failed
+}
+
+enum TunnelHandshakeError: Error {
+    case timedOut(TimeInterval)
+
+    var timeoutInterval: TimeInterval {
+        switch self {
+        case .timedOut(let interval):
+            return interval
+        }
+    }
+}
+#endif
+
 protocol TunnelsManagerListDelegate: AnyObject {
     func tunnelAdded(at index: Int)
     func tunnelModified(at index: Int)
@@ -505,11 +529,45 @@ class TunnelsManager {
 
             wg_log(.debug, message: "Tunnel '\(tunnel.name)' connection status changed to '\(tunnel.tunnelProvider.connection.status)'")
 
-            if tunnel.isAttemptingActivation {
-                if session.status == .connected {
+            if session.status == .connected {
+                #if os(iOS)
+                if tunnel.handshakeState == .confirmed {
+                    if tunnel.isAttemptingActivation {
+                        tunnel.isAttemptingActivation = false
+                        self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
+                    }
+                } else {
+                    let awaitingDelegate = tunnel.isAttemptingActivation
+                    let connectedAt = Date()
+                    tunnel.beginAwaitingFreshHandshakeIfNeeded(connectedAt: connectedAt) { [weak self, weak tunnel] result in
+                        guard let self = self, let tunnel = tunnel else { return }
+                        if awaitingDelegate {
+                            tunnel.isAttemptingActivation = false
+                        }
+                        switch result {
+                        case .success:
+                            if awaitingDelegate {
+                                self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
+                            }
+                        case .failure(let error):
+                            if awaitingDelegate {
+                                self.activationDelegate?.tunnelActivationFailed(tunnel: tunnel, error: .handshakeTimedOut(timeout: error.timeoutInterval))
+                            }
+                            self.startDeactivation(of: tunnel)
+                        }
+                    }
+                }
+                #else
+                if tunnel.isAttemptingActivation {
                     tunnel.isAttemptingActivation = false
                     self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
-                } else if session.status == .disconnected {
+                }
+                #endif
+            } else if session.status == .disconnected {
+                #if os(iOS)
+                tunnel.cancelHandshakeMonitoring()
+                #endif
+                if tunnel.isAttemptingActivation {
                     tunnel.isAttemptingActivation = false
                     if let (title, message) = lastErrorTextFromNetworkExtension(for: tunnel) {
                         self.activationDelegate?.tunnelActivationFailed(tunnel: tunnel, error: .activationFailedWithExtensionError(title: title, message: message, wasOnDemandEnabled: tunnelProvider.isOnDemandEnabled))
@@ -564,8 +622,18 @@ private func lastErrorTextFromNetworkExtension(for tunnel: TunnelContainer) -> (
 }
 
 class TunnelContainer: NSObject {
+    #if os(iOS)
+    private enum HandshakeConstants {
+        static let pollInterval: TimeInterval = 1.0
+        static let acceptanceSkew: TimeInterval = 1.0
+        static let defaultTimeout: TimeInterval = 12.0
+    }
+    #endif
     @objc dynamic var name: String
     @objc dynamic var status: TunnelStatus
+    #if os(iOS)
+    @objc dynamic var handshakeState: TunnelHandshakeState = .idle
+    #endif
 
     @objc dynamic var isActivateOnDemandEnabled: Bool
     @objc dynamic var hasOnDemandRules: Bool
@@ -595,6 +663,17 @@ class TunnelContainer: NSObject {
     var activationTimer: Timer?
     var deactivationTimer: Timer?
     var onDeactivated: (() -> Void)?
+    #if os(iOS)
+    private var handshakePollTimer: Timer?
+    private var handshakeTimeoutTimer: Timer?
+    private var handshakeTimeoutDeadline: Date?
+    private var handshakeCutoffDate: Date?
+    private var pendingTimeoutInterval: TimeInterval?
+    private var handshakeCompletion: ((Result<Date, TunnelHandshakeError>) -> Void)?
+    private var handshakePollInFlight = false
+    private var appDidEnterBackgroundObserver: NSObjectProtocol?
+    private var appWillEnterForegroundObserver: NSObjectProtocol?
+    #endif
 
     fileprivate var tunnelProvider: NETunnelProviderManager {
         didSet {
@@ -648,7 +727,19 @@ class TunnelContainer: NSObject {
         if (status == .restarting) || (status == .waiting && tunnelProvider.connection.status == .disconnected) {
             return
         }
-        status = TunnelStatus(from: tunnelProvider.connection.status)
+        let systemStatus = tunnelProvider.connection.status
+        #if os(iOS)
+        if systemStatus == .connected {
+            status = (handshakeState == .waiting) ? .activating : TunnelStatus(from: systemStatus)
+        } else {
+            if handshakeState != .idle {
+                cancelHandshakeMonitoring()
+            }
+            status = TunnelStatus(from: systemStatus)
+        }
+        #else
+        status = TunnelStatus(from: systemStatus)
+        #endif
     }
 
     fileprivate func startActivation(recursionCount: UInt = 0, lastError: Error? = nil, activationDelegate: TunnelsManagerActivationDelegate?) {
@@ -661,6 +752,10 @@ class TunnelContainer: NSObject {
         wg_log(.debug, message: "startActivation: Entering (tunnel: \(name))")
 
         status = .activating // Ensure that no other tunnel can attempt activation until this tunnel is done trying
+
+        #if os(iOS)
+        cancelHandshakeMonitoring()
+        #endif
 
         guard tunnelProvider.isEnabled else {
             // In case the tunnel had gotten disabled, re-enable and save it,
@@ -720,7 +815,16 @@ class TunnelContainer: NSObject {
 
     fileprivate func startDeactivation() {
         wg_log(.debug, message: "startDeactivation: Tunnel: \(name)")
+        #if os(iOS)
+        cancelHandshakeMonitoring()
+        #endif
         (tunnelProvider.connection as? NETunnelProviderSession)?.stopTunnel()
+    }
+
+    deinit {
+        #if os(iOS)
+        cancelHandshakeMonitoring()
+        #endif
     }
 }
 
@@ -748,3 +852,187 @@ extension NETunnelProviderManager {
         return localizedDescription == tunnel.name && tunnelConfiguration == tunnel.tunnelConfiguration
     }
 }
+
+#if os(iOS)
+extension TunnelContainer {
+    func beginAwaitingFreshHandshakeIfNeeded(connectedAt: Date = Date(), completion: @escaping (Result<Date, TunnelHandshakeError>) -> Void) {
+        #if targetEnvironment(simulator)
+        completion(.success(connectedAt))
+        return
+        #endif
+
+        switch handshakeState {
+        case .confirmed:
+            completion(.success(connectedAt))
+            return
+        case .waiting:
+            handshakeCompletion = completion
+            return
+        default:
+            break
+        }
+
+        handshakeCompletion = completion
+        handshakeState = .waiting
+        handshakeCutoffDate = connectedAt.addingTimeInterval(-HandshakeConstants.acceptanceSkew)
+        scheduleHandshakeTimeout()
+        registerForAppLifecycleNotifications()
+        pollHandshakeFreshness()
+    }
+
+    func cancelHandshakeMonitoring(resetState: Bool = true) {
+        cleanupHandshakeTimers()
+        unregisterAppLifecycleNotifications()
+        handshakeCompletion = nil
+        handshakeCutoffDate = nil
+        pendingTimeoutInterval = nil
+        handshakePollInFlight = false
+        if resetState {
+            handshakeState = .idle
+        }
+    }
+
+    private func handshakeTimeoutInterval() -> TimeInterval {
+        if let override = tunnelConfiguration?.interface.specialHandshakeTimeout, override > 0 {
+            return TimeInterval(override)
+        }
+        return HandshakeConstants.defaultTimeout
+    }
+
+    private func pollHandshakeFreshness() {
+        guard handshakeState == .waiting else { return }
+        guard !handshakePollInFlight else { return }
+        handshakePollInFlight = true
+
+        getRuntimeTunnelConfiguration { [weak self] runtimeConfiguration in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.handshakePollInFlight = false
+                guard self.handshakeState == .waiting else { return }
+                guard let runtimeConfiguration = runtimeConfiguration,
+                      let cutoffDate = self.handshakeCutoffDate else {
+                    self.scheduleNextHandshakePoll()
+                    return
+                }
+
+                if HandshakeFreshnessEvaluator.containsFreshHandshake(peers: runtimeConfiguration.peers, cutoffDate: cutoffDate) {
+                    self.finishHandshakeWaiting(result: .success(Date()))
+                } else {
+                    self.scheduleNextHandshakePoll()
+                }
+            }
+        }
+    }
+
+    private func scheduleNextHandshakePoll() {
+        guard handshakeState == .waiting else { return }
+        handshakePollTimer?.invalidate()
+        handshakePollTimer = Timer(timeInterval: HandshakeConstants.pollInterval, repeats: false) { [weak self] _ in
+            self?.pollHandshakeFreshness()
+        }
+        if let timer = handshakePollTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    private func scheduleHandshakeTimeout(after interval: TimeInterval? = nil) {
+        let timeout = interval ?? handshakeTimeoutInterval()
+        handshakeTimeoutTimer?.invalidate()
+        pendingTimeoutInterval = nil
+        handshakeTimeoutDeadline = Date().addingTimeInterval(timeout)
+        handshakeTimeoutTimer = Timer(timeInterval: timeout, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            self.finishHandshakeWaiting(result: .failure(.timedOut(timeout)))
+        }
+        if let timer = handshakeTimeoutTimer {
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
+
+    private func finishHandshakeWaiting(result: Result<Date, TunnelHandshakeError>) {
+        cleanupHandshakeTimers()
+        unregisterAppLifecycleNotifications()
+        handshakeCutoffDate = nil
+        switch result {
+        case .success:
+            handshakeState = .confirmed
+            status = .active
+        case .failure:
+            handshakeState = .failed
+        }
+        let completion = handshakeCompletion
+        handshakeCompletion = nil
+        completion?(result)
+    }
+
+    private func cleanupHandshakeTimers() {
+        handshakePollTimer?.invalidate()
+        handshakeTimeoutTimer?.invalidate()
+        handshakePollTimer = nil
+        handshakeTimeoutTimer = nil
+        handshakeTimeoutDeadline = nil
+        pendingTimeoutInterval = nil
+        handshakePollInFlight = false
+    }
+
+    private func registerForAppLifecycleNotifications() {
+        guard appDidEnterBackgroundObserver == nil, appWillEnterForegroundObserver == nil else { return }
+        let center = NotificationCenter.default
+        appDidEnterBackgroundObserver = center.addObserver(forName: UIApplication.didEnterBackgroundNotification,
+                                                          object: nil,
+                                                          queue: .main) { [weak self] _ in
+            self?.applicationDidEnterBackground()
+        }
+        appWillEnterForegroundObserver = center.addObserver(forName: UIApplication.willEnterForegroundNotification,
+                                                            object: nil,
+                                                            queue: .main) { [weak self] _ in
+            self?.applicationWillEnterForeground()
+        }
+    }
+
+    private func unregisterAppLifecycleNotifications() {
+        let center = NotificationCenter.default
+        if let observer = appDidEnterBackgroundObserver {
+            center.removeObserver(observer)
+        }
+        if let observer = appWillEnterForegroundObserver {
+            center.removeObserver(observer)
+        }
+        appDidEnterBackgroundObserver = nil
+        appWillEnterForegroundObserver = nil
+    }
+
+    private func applicationDidEnterBackground() {
+        guard handshakeState == .waiting else { return }
+        if let deadline = handshakeTimeoutDeadline {
+            pendingTimeoutInterval = max(0, deadline.timeIntervalSinceNow)
+        }
+        handshakePollTimer?.invalidate()
+        handshakePollTimer = nil
+        handshakeTimeoutTimer?.invalidate()
+        handshakeTimeoutTimer = nil
+    }
+
+    private func applicationWillEnterForeground() {
+        guard handshakeState == .waiting else { return }
+        if let remaining = pendingTimeoutInterval {
+            pendingTimeoutInterval = nil
+            if remaining <= 0 {
+                finishHandshakeWaiting(result: .failure(.timedOut(handshakeTimeoutInterval())))
+                return
+            }
+            scheduleHandshakeTimeout(after: remaining)
+        } else if let deadline = handshakeTimeoutDeadline {
+            let remaining = max(0, deadline.timeIntervalSinceNow)
+            if remaining <= 0 {
+                finishHandshakeWaiting(result: .failure(.timedOut(handshakeTimeoutInterval())))
+                return
+            }
+            scheduleHandshakeTimeout(after: remaining)
+        } else {
+            scheduleHandshakeTimeout()
+        }
+        pollHandshakeFreshness()
+    }
+}
+#endif

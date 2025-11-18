@@ -23,6 +23,9 @@ class TunnelListCell: UITableViewCell {
             hasOnDemandRulesObservationToken = tunnel?.observe(\.hasOnDemandRules) { [weak self] tunnel, _ in
                 self?.update(from: tunnel, animated: true)
             }
+            handshakeObservationToken = tunnel?.observe(\.handshakeState) { [weak self] tunnel, _ in
+                self?.update(from: tunnel, animated: true)
+            }
         }
     }
     var onSwitchToggled: ((Bool) -> Void)?
@@ -58,6 +61,7 @@ class TunnelListCell: UITableViewCell {
     private var statusObservationToken: NSKeyValueObservation?
     private var isOnDemandEnabledObservationToken: NSKeyValueObservation?
     private var hasOnDemandRulesObservationToken: NSKeyValueObservation?
+    private var handshakeObservationToken: NSKeyValueObservation?
 
     private var subTitleLabelBottomConstraint: NSLayoutConstraint?
     private var nameLabelBottomConstraint: NSLayoutConstraint?
@@ -125,6 +129,7 @@ class TunnelListCell: UITableViewCell {
         }
         let status = tunnel.status
         let isOnDemandEngaged = tunnel.isActivateOnDemandEnabled
+        let isAwaitingHandshake = tunnel.handshakeState == .waiting
 
         let shouldSwitchBeOn = ((status != .deactivating && status != .inactive) || isOnDemandEngaged)
         statusSwitch.setOn(shouldSwitchBeOn, animated: true)
@@ -135,19 +140,31 @@ class TunnelListCell: UITableViewCell {
             statusSwitch.onTintColor = UIColor.systemGreen
         }
 
-        statusSwitch.isUserInteractionEnabled = (status == .inactive || status == .active)
-
-        if tunnel.hasOnDemandRules {
+        if isAwaitingHandshake {
+            onDemandLabel.text = tr("tunnelStatusWaitingForHandshakeHint")
+        } else if tunnel.hasOnDemandRules {
             onDemandLabel.text = isOnDemandEngaged ? tr("tunnelListCaptionOnDemand") : ""
-            busyIndicator.stopAnimating()
-            statusSwitch.isUserInteractionEnabled = true
         } else {
             onDemandLabel.text = ""
-            if status == .inactive || status == .active {
-                busyIndicator.stopAnimating()
-            } else {
-                busyIndicator.startAnimating()
-            }
+        }
+
+        let shouldShowBusyIndicator: Bool
+        if isAwaitingHandshake {
+            shouldShowBusyIndicator = true
+        } else if tunnel.hasOnDemandRules {
+            shouldShowBusyIndicator = false
+        } else {
+            shouldShowBusyIndicator = !(status == .inactive || status == .active)
+        }
+        if shouldShowBusyIndicator {
+            busyIndicator.startAnimating()
+        } else {
+            busyIndicator.stopAnimating()
+        }
+
+        if tunnel.hasOnDemandRules {
+            statusSwitch.isUserInteractionEnabled = true
+        } else {
             statusSwitch.isUserInteractionEnabled = (status == .inactive || status == .active)
         }
 
@@ -158,5 +175,11 @@ class TunnelListCell: UITableViewCell {
         statusSwitch.setOn(false, animated: animated)
         statusSwitch.isUserInteractionEnabled = false
         busyIndicator.stopAnimating()
+        onDemandLabel.text = ""
+        nameObservationToken = nil
+        statusObservationToken = nil
+        isOnDemandEnabledObservationToken = nil
+        hasOnDemandRulesObservationToken = nil
+        handshakeObservationToken = nil
     }
 }

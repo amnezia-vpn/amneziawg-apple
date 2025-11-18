@@ -33114,8 +33114,41 @@
             "value" : "等待中"
           }
         }
+        }
       }
-    }
-  },
+    },
+    "tunnelStatusWaitingForHandshakeHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needsReview",
+            "value" : "Waiting for handshake…"
+          }
+        }
+      }
+    },
+    "alertTunnelHandshakeTimeoutTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needsReview",
+            "value" : "Handshake timed out"
+          }
+        }
+      }
+    },
+    "alertTunnelHandshakeTimeoutMessage (%d)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "needsReview",
+            "value" : "No handshake was received within %d seconds."
+          }
+        }
+      }
+    },
   "version" : "1.0"
 }

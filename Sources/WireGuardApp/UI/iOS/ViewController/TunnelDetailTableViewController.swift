@@ -361,6 +361,10 @@ extension TunnelDetailTableViewController {
                 text = tr("tunnelStatusWaiting")
             }
 
+            if tunnel.handshakeState == .waiting {
+                text = tr("tunnelStatusActivating") + " · " + tr("tunnelStatusWaitingForHandshakeHint")
+            }
+
             if tunnel.hasOnDemandRules {
                 text += isOnDemandEngaged ? tr("tunnelStatusAddendumOnDemand") : ""
                 cell.switchView.isUserInteractionEnabled = true
@@ -385,6 +389,9 @@ extension TunnelDetailTableViewController {
             update(cell: cell, with: tunnel)
         }
         cell.hasOnDemandRulesObservationToken = tunnel.observe(\.hasOnDemandRules) { [weak cell] tunnel, _ in
+            update(cell: cell, with: tunnel)
+        }
+        cell.handshakeStateObservationToken = tunnel.observe(\.handshakeState) { [weak cell] tunnel, _ in
             update(cell: cell, with: tunnel)
         }
 
