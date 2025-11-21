@@ -259,9 +259,10 @@ extension TunnelEditTableViewController {
             fatalError("Unexpected interface field")
         case .junkPacketCount, .junkPacketMinSize, .junkPacketMaxSize,
                 .initPacketJunkSize, .responsePacketJunkSize, .cookieReplyPacketJunkSize, .transportPacketJunkSize,
-                .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
                 .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5, .controlledJunk1, .controlledJunk2, .controlledJunk3, .specialHandshakeTimeout:
             cell.keyboardType = .numberPad
+        case .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader:
+            cell.keyboardType = .numbersAndPunctuation
         }
 
         cell.isValueValid = (!tunnelViewModel.interfaceData.fieldsWithError.contains(field))
