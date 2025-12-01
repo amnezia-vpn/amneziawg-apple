@@ -4,13 +4,13 @@ go 1.24.4
 
 require (
 	github.com/amnezia-vpn/amnezia-libxray v0.0.1
-	github.com/amnezia-vpn/amneziawg-go v0.2.15
+	github.com/amnezia-vpn/amnezia-xray-core v1.8.11
+	github.com/amnezia-vpn/amneziawg-go v0.2.16
 	golang.org/x/sys v0.33.0
 )
 
 require (
 	github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0 // indirect
-	github.com/amnezia-vpn/amnezia-xray-core v1.8.11 // indirect
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/cloudflare/circl v1.3.8 // indirect
 	github.com/dgryski/go-metro v0.0.0-20211217172704-adc40b04c140 // indirect
@@ -31,12 +31,10 @@ require (
 	github.com/sagernet/sing v0.3.8 // indirect
 	github.com/sagernet/sing-shadowsocks v0.2.6 // indirect
 	github.com/seiflotfy/cuckoofilter v0.0.0-20220411075957-e3b120b3f5fb // indirect
-	github.com/tevino/abool v1.2.0 // indirect
 	github.com/v2fly/ss-bloomring v0.0.0-20210312155135-28617310f63e // indirect
 	github.com/vishvananda/netlink v1.2.1-beta.2.0.20230316163032-ced5aaba43e3 // indirect
 	github.com/vishvananda/netns v0.0.4 // indirect
 	github.com/xtls/reality v0.0.0-20231112171332-de1173cf2b19 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/mock v0.4.0 // indirect
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/crypto v0.39.0 // indirect
