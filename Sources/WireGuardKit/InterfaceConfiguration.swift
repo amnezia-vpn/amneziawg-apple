@@ -14,10 +14,10 @@ public struct InterfaceConfiguration {
     public var responsePacketJunkSize: UInt16?
     public var cookieReplyPacketJunkSize: UInt16?
     public var transportPacketJunkSize: UInt16?
-    public var initPacketMagicHeader: UInt32?
-    public var responsePacketMagicHeader: UInt32?
-    public var underloadPacketMagicHeader: UInt32?
-    public var transportPacketMagicHeader: UInt32?
+    public var initPacketMagicHeader: String?
+    public var responsePacketMagicHeader: String?
+    public var underloadPacketMagicHeader: String?
+    public var transportPacketMagicHeader: String?
     public var listenPort: UInt16?
     public var mtu: UInt16?
     public var dns = [DNSServer]()

@@ -338,28 +338,16 @@ extension TunnelConfiguration {
             interface.transportPacketJunkSize = transportPacketJunkSize
         }
         if let initPacketMagicHeaderString = attributes["h1"] {
-            guard let initPacketMagicHeader = UInt32(initPacketMagicHeaderString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(initPacketMagicHeaderString)
-            }
-            interface.initPacketMagicHeader = initPacketMagicHeader
+            interface.initPacketMagicHeader = initPacketMagicHeaderString
         }
         if let responsePacketMagicHeaderString = attributes["h2"] {
-            guard let responsePacketMagicHeader = UInt32(responsePacketMagicHeaderString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(responsePacketMagicHeaderString)
-            }
-            interface.responsePacketMagicHeader = responsePacketMagicHeader
+            interface.responsePacketMagicHeader = responsePacketMagicHeaderString
         }
         if let underloadPacketMagicHeaderString = attributes["h3"] {
-            guard let underloadPacketMagicHeader = UInt32(underloadPacketMagicHeaderString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(underloadPacketMagicHeaderString)
-            }
-            interface.underloadPacketMagicHeader = underloadPacketMagicHeader
+            interface.underloadPacketMagicHeader = underloadPacketMagicHeaderString
         }
         if let transportPacketMagicHeaderString = attributes["h4"] {
-            guard let transportPacketMagicHeader = UInt32(transportPacketMagicHeaderString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(transportPacketMagicHeaderString)
-            }
-            interface.transportPacketMagicHeader = transportPacketMagicHeader
+            interface.transportPacketMagicHeader = transportPacketMagicHeaderString
         }
         if let specialJunk1String = attributes["i1"] {
             interface.specialJunk1 = specialJunk1String

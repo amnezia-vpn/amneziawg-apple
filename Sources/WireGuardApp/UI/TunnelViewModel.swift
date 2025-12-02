@@ -209,19 +209,19 @@ class TunnelViewModel {
             }
 
             if let initPacketMagicHeader = config.initPacketMagicHeader {
-                scratchpad[.initPacketMagicHeader] = String(initPacketMagicHeader)
+                scratchpad[.initPacketMagicHeader] = initPacketMagicHeader
             }
 
             if let responsePacketMagicHeader = config.responsePacketMagicHeader {
-                scratchpad[.responsePacketMagicHeader] = String(responsePacketMagicHeader)
+                scratchpad[.responsePacketMagicHeader] = responsePacketMagicHeader
             }
 
             if let underloadPacketMagicHeader = config.underloadPacketMagicHeader {
-                scratchpad[.underloadPacketMagicHeader] = String(underloadPacketMagicHeader)
+                scratchpad[.underloadPacketMagicHeader] = underloadPacketMagicHeader
             }
 
             if let transportPacketMagicHeader = config.transportPacketMagicHeader {
-                scratchpad[.transportPacketMagicHeader] = String(transportPacketMagicHeader)
+                scratchpad[.transportPacketMagicHeader] = transportPacketMagicHeader
             }
 
             if let cookieReplyPacketJunkSize = config.cookieReplyPacketJunkSize {
@@ -375,32 +375,32 @@ class TunnelViewModel {
             }
 
             if let initPacketMagicHeaderString = scratchpad[.initPacketMagicHeader],
-               let initPacketMagicHeader = UInt32(initPacketMagicHeaderString) {
-                config.initPacketMagicHeader = initPacketMagicHeader
+               !initPacketMagicHeaderString.isEmpty {
+                config.initPacketMagicHeader = initPacketMagicHeaderString
             } else {
                 fieldsWithError.insert(.initPacketMagicHeader)
                 errorMessages.append(tr("alertInvalidInterfaceMessageInitPacketMagicHeaderInvalid"))
             }
 
             if let responsePacketMagicHeaderString = scratchpad[.responsePacketMagicHeader],
-               let responsePacketMagicHeader = UInt32(responsePacketMagicHeaderString) {
-                config.responsePacketMagicHeader = responsePacketMagicHeader
+               !responsePacketMagicHeaderString.isEmpty {
+                config.responsePacketMagicHeader = responsePacketMagicHeaderString
             } else {
                 fieldsWithError.insert(.responsePacketMagicHeader)
                 errorMessages.append(tr("alertInvalidInterfaceMessageResponsePacketMagicHeaderInvalid"))
             }
 
             if let underloadPacketMagicHeaderString = scratchpad[.underloadPacketMagicHeader],
-               let underloadPacketMagicHeader = UInt32(underloadPacketMagicHeaderString) {
-                config.underloadPacketMagicHeader = underloadPacketMagicHeader
+               !underloadPacketMagicHeaderString.isEmpty {
+                config.underloadPacketMagicHeader = underloadPacketMagicHeaderString
             } else {
                 fieldsWithError.insert(.underloadPacketMagicHeader)
                 errorMessages.append(tr("alertInvalidInterfaceMessageUnderloadPacketMagicHeaderInvalid"))
             }
 
             if let transportPacketMagicHeaderString = scratchpad[.transportPacketMagicHeader],
-               let transportPacketMagicHeader = UInt32(transportPacketMagicHeaderString) {
-                config.transportPacketMagicHeader = transportPacketMagicHeader
+               !transportPacketMagicHeaderString.isEmpty {
+                config.transportPacketMagicHeader = transportPacketMagicHeaderString
             } else {
                 fieldsWithError.insert(.transportPacketMagicHeader)
                 errorMessages.append(tr("alertInvalidInterfaceMessageTransportPacketMagicHeaderInvalid"))
