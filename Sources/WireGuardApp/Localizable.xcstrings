@@ -33114,16 +33114,123 @@
             "value" : "等待中"
           }
         }
-        }
       }
     },
     "tunnelStatusWaitingForHandshakeHint" : {
       "extractionState" : "manual",
       "localizations" : {
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperant el handshake…"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warte auf Handshake…"
+          }
+        },
         "en" : {
           "stringUnit" : {
-            "state" : "needsReview",
+            "state" : "translated",
             "value" : "Waiting for handshake…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esperando el handshake…"
+          }
+        },
+        "fa" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "در انتظار هندشیک…"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Odotetaan kättelyä…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En attente de handshake…"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menunggu handshake…"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In attesa di handshake…"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ハンドシェイクを待機中…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "핸드셰이크를 기다리는 중…"
+          }
+        },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ਹੈਂਡਸ਼ੇਕ ਦੀ ਉਡੀਕ ਕੀਤੀ ਜਾ ਰਹੀ ਹੈ…"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oczekiwanie na handshake…"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se așteaptă handshake…"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ожидание рукопожатия…"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Čakanje na rokovanje…"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El sıkışma bekleniyor…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待握手…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待握手…"
           }
         }
       }
@@ -33131,10 +33238,118 @@
     "alertTunnelHandshakeTimeoutTitle" : {
       "extractionState" : "manual",
       "localizations" : {
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No s'ha pogut establir la connexió"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbindung konnte nicht hergestellt werden"
+          }
+        },
         "en" : {
           "stringUnit" : {
-            "state" : "needsReview",
-            "value" : "Handshake timed out"
+            "state" : "translated",
+            "value" : "Unable to establish connection"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo establecer la conexión"
+          }
+        },
+        "fa" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "امکان برقراری اتصال وجود ندارد"
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yhteyttä ei voitu muodostaa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’établir la connexion"
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tidak dapat membuat koneksi"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossibile stabilire la connessione"
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続を確立できません"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결을 설정할 수 없습니다"
+          }
+        },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ਕਨੈਕਸ਼ਨ ਸਥਾਪਿਤ ਨਹੀਂ ਹੋ ਸਕਿਆ"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie można nawiązać połączenia"
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nu se poate stabili conexiunea"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось установить соединение"
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Povezave ni mogoče vzpostaviti"
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı kurulamadı"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法建立连接"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "無法建立連線"
           }
         }
       }
@@ -33142,13 +33357,122 @@
     "alertTunnelHandshakeTimeoutMessage (%d)" : {
       "extractionState" : "manual",
       "localizations" : {
+        "ca" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'intent de connexió ha caducat després de %d segons."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Verbindungsversuch ist nach %d Sekunden abgelaufen."
+          }
+        },
         "en" : {
           "stringUnit" : {
-            "state" : "needsReview",
-            "value" : "No handshake was received within %d seconds."
+            "state" : "translated",
+            "value" : "Connection attempt timed out after %d seconds."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El intento de conexión agotó el tiempo de espera después de %d segundos."
+          }
+        },
+        "fa" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تلاش برای اتصال پس از %d ثانیه منقضی شد."
+          }
+        },
+        "fi" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yhteyden muodostaminen aikakatkaistiin %d sekunnin jälkeen."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La tentative de connexion a expiré après %d secondes."
+          }
+        },
+        "id" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Percobaan koneksi habis waktu setelah %d detik."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tentativo di connessione è scaduto dopo %d secondi."
+          }
+        },
+        "ja" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接続の試行が%d秒後にタイムアウトしました。"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "연결 시도가 %d초 후 시간 초과되었습니다."
+          }
+        },
+        "pa" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d ਸਕਿੰਟ ਬਾਅਦ ਕਨੈਕਸ਼ਨ ਦੀ ਕੋਸ਼ਿਸ਼ ਦਾ ਸਮਾਂ ਖਤਮ ਹੋ ਗਿਆ।"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Próba połączenia przekroczyła limit czasu po %d sekundach."
+          }
+        },
+        "ro" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Încercarea de conectare a expirat după %d secunde."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попытка подключения завершилась по тайм-ауту через %d секунд."
+          }
+        },
+        "sl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poskus povezave je potekel po %d sekundah."
+          }
+        },
+        "tr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bağlantı denemesi %d saniye sonra zaman aşımına uğradı."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接尝试在 %d 秒后超时。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "連線嘗試在 %d 秒後逾時。"
           }
         }
       }
-    },
+    }
+  },
   "version" : "1.0"
 }
