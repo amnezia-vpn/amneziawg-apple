@@ -893,9 +893,6 @@ extension TunnelContainer {
     }
 
     private func handshakeTimeoutInterval() -> TimeInterval {
-        if let override = tunnelConfiguration?.interface.specialHandshakeTimeout, override > 0 {
-            return TimeInterval(override)
-        }
         return HandshakeConstants.defaultTimeout
     }
 

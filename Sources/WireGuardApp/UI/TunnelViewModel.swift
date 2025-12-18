@@ -31,10 +31,6 @@ class TunnelViewModel {
         case specialJunk3
         case specialJunk4
         case specialJunk5
-        case controlledJunk1
-        case controlledJunk2
-        case controlledJunk3
-        case specialHandshakeTimeout
 
         var localizedUIString: String {
             switch self {
@@ -64,10 +60,6 @@ class TunnelViewModel {
             case .specialJunk3: return tr("I3")
             case .specialJunk4: return tr("I4")
             case .specialJunk5: return tr("I5")
-            case .controlledJunk1: return tr("J1")
-            case .controlledJunk2: return tr("J2")
-            case .controlledJunk3: return tr("J3")
-            case .specialHandshakeTimeout: return tr("Itime")
             }
         }
     }
@@ -252,24 +244,6 @@ class TunnelViewModel {
                 scratchpad[.specialJunk5] = String(specialJunk5)
             }
 
-            if let controlledJunk1 = config.controlledJunk1 {
-                scratchpad[.controlledJunk1] = String(controlledJunk1)
-            }
-
-            if let controlledJunk2 = config.controlledJunk2 {
-                scratchpad[.controlledJunk2] = String(controlledJunk2)
-            }
-
-            if let controlledJunk3 = config.controlledJunk3 {
-                scratchpad[.controlledJunk3] = String(controlledJunk3)
-            }
-
-            if let specialHandshakeTimeout = config.specialHandshakeTimeout {
-                scratchpad[.specialHandshakeTimeout] = String(specialHandshakeTimeout)
-            }
-
-
-
             return scratchpad
         }
 
@@ -432,29 +406,6 @@ class TunnelViewModel {
             if let specialJunk5String = scratchpad[.specialJunk5], !specialJunk5String.isEmpty {
                 config.specialJunk5 = specialJunk5String
             }
-
-            if let controlledJunk1String = scratchpad[.controlledJunk1], !controlledJunk1String.isEmpty {
-                config.controlledJunk1 = controlledJunk1String
-            }
-
-            if let controlledJunk2String = scratchpad[.controlledJunk2], !controlledJunk2String.isEmpty {
-                config.controlledJunk2 = controlledJunk2String
-            }
-
-            if let controlledJunk3String = scratchpad[.controlledJunk3], !controlledJunk3String.isEmpty {
-                config.controlledJunk3 = controlledJunk3String
-            }
-
-            if let specialHandshakeTimeoutString = scratchpad[.specialHandshakeTimeout], !specialHandshakeTimeoutString.isEmpty {
-                if let specialHandshakeTimeout = Int(specialHandshakeTimeoutString) {
-                    config.specialHandshakeTimeout = specialHandshakeTimeout
-                } else {
-                    fieldsWithError.insert(.specialHandshakeTimeout)
-                    errorMessages.append(tr("alertInvalidInterfaceMessageSpecialHandshakeTimeoutInvalid"))
-                }
-            }
-
-
 
             guard errorMessages.isEmpty else { return .error(errorMessages.first!) }
 

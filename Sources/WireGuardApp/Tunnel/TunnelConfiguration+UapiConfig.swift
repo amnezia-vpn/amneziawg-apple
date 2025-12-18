@@ -92,10 +92,6 @@ extension TunnelConfiguration {
         interfaceConfiguration?.specialJunk3 = base?.interface.specialJunk3
         interfaceConfiguration?.specialJunk4 = base?.interface.specialJunk4
         interfaceConfiguration?.specialJunk5 = base?.interface.specialJunk5
-        interfaceConfiguration?.controlledJunk1 = base?.interface.controlledJunk1
-        interfaceConfiguration?.controlledJunk2 = base?.interface.controlledJunk2
-        interfaceConfiguration?.controlledJunk3 = base?.interface.controlledJunk3
-        interfaceConfiguration?.specialHandshakeTimeout = base?.interface.specialHandshakeTimeout
 
         if let interfaceConfiguration = interfaceConfiguration {
             self.init(name: base?.name, interface: interfaceConfiguration, peers: peerConfigurations)

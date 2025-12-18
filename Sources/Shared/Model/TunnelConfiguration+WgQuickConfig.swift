@@ -94,10 +94,6 @@ extension TunnelConfiguration {
                         "i3",
                         "i4",
                         "i5",
-                        "j1",
-                        "j2",
-                        "j3",
-                        "itime",
                     ]
                     let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
                     if parserState == .inInterfaceSection {
@@ -204,18 +200,6 @@ extension TunnelConfiguration {
         }
         if let specialJunk5 = interface.specialJunk5 {
             output.append("I5 = \(specialJunk5)\n")
-        }
-        if let controlledJunk1 = interface.controlledJunk1 {
-            output.append("J1 = \(controlledJunk1)\n")
-        }
-        if let controlledJunk2 = interface.controlledJunk2 {
-            output.append("J2 = \(controlledJunk2)\n")
-        }
-        if let controlledJunk3 = interface.controlledJunk3 {
-            output.append("J3 = \(controlledJunk3)\n")
-        }
-        if let specialHandshakeTimeout = interface.specialHandshakeTimeout {
-            output.append("Itime = \(specialHandshakeTimeout)\n")
         }
         if !interface.addresses.isEmpty {
             let addressString = interface.addresses.map { $0.stringRepresentation }.joined(separator: ", ")
@@ -363,21 +347,6 @@ extension TunnelConfiguration {
         }
         if let specialJunk5String = attributes["i5"] {
             interface.specialJunk5 = specialJunk5String
-        }
-        if let controlledJunk1String = attributes["j1"] {
-            interface.controlledJunk1 = controlledJunk1String
-        }
-        if let controlledJunk2String = attributes["j2"] {
-            interface.controlledJunk2 = controlledJunk2String
-        }
-        if let controlledJunk3String = attributes["j3"] {
-            interface.controlledJunk3 = controlledJunk3String
-        }
-        if let specialHandshakeTimeoutString = attributes["itime"] {
-            guard let specialHandshakeTimeout = Int(specialHandshakeTimeoutString) else {
-                throw ParseError.interfaceHasInvalidCustomParam(specialHandshakeTimeoutString)
-            }
-            interface.specialHandshakeTimeout = specialHandshakeTimeout
         }
         return interface
     }
