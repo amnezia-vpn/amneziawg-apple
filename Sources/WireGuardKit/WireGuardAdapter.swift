@@ -44,6 +44,13 @@ public class WireGuardAdapter {
     /// Network routes monitor.
     private var networkMonitor: NWPathMonitor?
 
+    /// Timestamp of last applied `NEPacketTunnelNetworkSettings` update.
+    /// Used to suppress transient `.unsatisfied` events immediately after installing routes (common on Wi‑Fi with kill-switch routes).
+    private var lastNetworkSettingsUpdateAt: Date?
+
+    /// Tracks whether the tunnel has ever had a successful handshake during the lifetime of this adapter instance.
+    private var everHadHandshake = false
+
     /// Packet tunnel provider.
     private weak var packetTunnelProvider: NEPacketTunnelProvider?
 
@@ -335,6 +342,8 @@ public class WireGuardAdapter {
         } else {
             self.logHandler(.error, "setTunnelNetworkSettings timed out after 5 seconds; proceeding anyway")
         }
+
+        self.lastNetworkSettingsUpdateAt = Date()
     }
 
     /// Resolve peers of the given tunnel configuration.
@@ -423,6 +432,7 @@ public class WireGuardAdapter {
         #elseif os(iOS)
         switch self.state {
         case .started(let handle, let settingsGenerator):
+            self.updateEverHadHandshake(handle: handle)
             if path.status.isSatisfiable {
                 let (wgConfig, resolutionResults) = settingsGenerator.endpointUapiConfiguration()
                 self.logEndpointResolutionResults(resolutionResults)
@@ -431,10 +441,19 @@ public class WireGuardAdapter {
                 wgDisableSomeRoamingForBrokenMobileSemantics(handle)
                 wgBumpSockets(handle)
             } else {
-                self.logHandler(.verbose, "Connectivity offline, pausing backend.")
+                if self.shouldPauseBackendOnUnsatisfiedPath() {
+                    self.logHandler(.verbose, "Connectivity offline, pausing backend.")
 
-                self.state = .temporaryShutdown(settingsGenerator)
-                wgTurnOff(handle)
+                    self.state = .temporaryShutdown(settingsGenerator)
+                    wgTurnOff(handle)
+                } else {
+                    let remaining = self.remainingUnsatisfiedGraceSeconds()
+                    if remaining > 0 {
+                        self.logHandler(.verbose, "Connectivity unsatisfied right after applying routes, not pausing backend for ~\(Int(ceil(remaining)))s.")
+                    } else {
+                        self.logHandler(.verbose, "Connectivity unsatisfied right after applying routes, not pausing backend.")
+                    }
+                }
             }
 
         case .temporaryShutdown(let settingsGenerator):
@@ -463,6 +482,49 @@ public class WireGuardAdapter {
         #else
         #error("Unsupported")
         #endif
+    }
+
+    // MARK: - iOS offline detection helpers
+
+    private var unsatisfiedGracePeriodAfterNetworkSettings: TimeInterval {
+        // Long enough to cover the route-flip window on Wi‑Fi (en0 → utun*) while the first handshake completes,
+        // short enough to still pause reasonably quickly on genuine offline transitions.
+        12
+    }
+
+    private func shouldPauseBackendOnUnsatisfiedPath() -> Bool {
+        // `.unsatisfied` is commonly reported right after installing kill-switch routes (Wi‑Fi is especially prone).
+        // Suppress pausing for a short grace period after the last network settings update.
+        if let lastUpdateAt = self.lastNetworkSettingsUpdateAt,
+           Date().timeIntervalSince(lastUpdateAt) < self.unsatisfiedGracePeriodAfterNetworkSettings {
+            return false
+        }
+
+        // Outside the grace period, treat `.unsatisfied` as a real offline transition.
+        // (We still keep `everHadHandshake` for future heuristics and for logging/debugging.)
+        return true
+    }
+
+    private func remainingUnsatisfiedGraceSeconds() -> TimeInterval {
+        guard let lastUpdateAt = self.lastNetworkSettingsUpdateAt else { return 0 }
+        let elapsed = Date().timeIntervalSince(lastUpdateAt)
+        return max(0, self.unsatisfiedGracePeriodAfterNetworkSettings - elapsed)
+    }
+
+    private func updateEverHadHandshake(handle: Int32) {
+        guard !self.everHadHandshake else { return }
+        guard let settings = wgGetConfig(handle) else { return }
+        let config = String(cString: settings)
+        free(settings)
+
+        for line in config.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard line.hasPrefix("last_handshake_time_sec=") else { continue }
+            let valueString = String(line.dropFirst("last_handshake_time_sec=".count))
+            if let value = Int64(valueString), value > 0 {
+                self.everHadHandshake = true
+                break
+            }
+        }
     }
 }
 
