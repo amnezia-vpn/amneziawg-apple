@@ -6,27 +6,27 @@ import NetworkExtension
 import os.log
 
 #if os(iOS)
-import UIKit
+    import UIKit
 #endif
 
 #if os(iOS)
-@objc enum TunnelHandshakeState: Int {
-    case idle
-    case waiting
-    case confirmed
-    case failed
-}
+    @objc enum TunnelHandshakeState: Int {
+        case idle
+        case waiting
+        case confirmed
+        case failed
+    }
 
-enum TunnelHandshakeError: Error {
-    case timedOut(TimeInterval)
+    enum TunnelHandshakeError: Error {
+        case timedOut(TimeInterval)
 
-    var timeoutInterval: TimeInterval {
-        switch self {
-        case .timedOut(let interval):
-            return interval
+        var timeoutInterval: TimeInterval {
+            switch self {
+            case .timedOut(let interval):
+                return interval
+            }
         }
     }
-}
 #endif
 
 protocol TunnelsManagerListDelegate: AnyObject {
@@ -37,10 +37,11 @@ protocol TunnelsManagerListDelegate: AnyObject {
 }
 
 protocol TunnelsManagerActivationDelegate: AnyObject {
-    func tunnelActivationAttemptFailed(tunnel: TunnelContainer, error: TunnelsManagerActivationAttemptError) // startTunnel wasn't called or failed
-    func tunnelActivationAttemptSucceeded(tunnel: TunnelContainer) // startTunnel succeeded
-    func tunnelActivationFailed(tunnel: TunnelContainer, error: TunnelsManagerActivationError) // status didn't change to connected
-    func tunnelActivationSucceeded(tunnel: TunnelContainer) // status changed to connected
+    func tunnelActivationAttemptFailed(
+        tunnel: TunnelContainer, error: TunnelsManagerActivationAttemptError)  // startTunnel wasn't called or failed
+    func tunnelActivationAttemptSucceeded(tunnel: TunnelContainer)  // startTunnel succeeded
+    func tunnelActivationFailed(tunnel: TunnelContainer, error: TunnelsManagerActivationError)  // status didn't change to connected
+    func tunnelActivationSucceeded(tunnel: TunnelContainer)  // status changed to connected
 }
 
 class TunnelsManager {
@@ -52,59 +53,76 @@ class TunnelsManager {
     private var configurationsObservationToken: NotificationToken?
 
     init(tunnelProviders: [NETunnelProviderManager]) {
-        tunnels = tunnelProviders.map { TunnelContainer(tunnel: $0) }.sorted { TunnelsManager.tunnelNameIsLessThan($0.name, $1.name) }
+        tunnels = tunnelProviders.map { TunnelContainer(tunnel: $0) }.sorted {
+            TunnelsManager.tunnelNameIsLessThan($0.name, $1.name)
+        }
         startObservingTunnelStatuses()
         startObservingTunnelConfigurations()
     }
 
-    static func create(completionHandler: @escaping (Result<TunnelsManager, TunnelsManagerError>) -> Void) {
+    static func create(
+        completionHandler: @escaping (Result<TunnelsManager, TunnelsManagerError>) -> Void
+    ) {
         #if targetEnvironment(simulator)
-        completionHandler(.success(TunnelsManager(tunnelProviders: MockTunnels.createMockTunnels())))
+            completionHandler(
+                .success(TunnelsManager(tunnelProviders: MockTunnels.createMockTunnels())))
         #else
-        NETunnelProviderManager.loadAllFromPreferences { managers, error in
-            if let error = error {
-                wg_log(.error, message: "Failed to load tunnel provider managers: \(error)")
-                completionHandler(.failure(TunnelsManagerError.systemErrorOnListingTunnels(systemError: error)))
-                return
-            }
+            NETunnelProviderManager.loadAllFromPreferences { managers, error in
+                if let error = error {
+                    wg_log(.error, message: "Failed to load tunnel provider managers: \(error)")
+                    completionHandler(
+                        .failure(
+                            TunnelsManagerError.systemErrorOnListingTunnels(systemError: error)))
+                    return
+                }
 
-            var tunnelManagers = managers ?? []
-            var refs: Set<Data> = []
-            var tunnelNames: Set<String> = []
-            for (index, tunnelManager) in tunnelManagers.enumerated().reversed() {
-                if let tunnelName = tunnelManager.localizedDescription {
-                    tunnelNames.insert(tunnelName)
+                var tunnelManagers = managers ?? []
+                var refs: Set<Data> = []
+                var tunnelNames: Set<String> = []
+                for (index, tunnelManager) in tunnelManagers.enumerated().reversed() {
+                    if let tunnelName = tunnelManager.localizedDescription {
+                        tunnelNames.insert(tunnelName)
+                    }
+                    guard
+                        let proto = tunnelManager.protocolConfiguration as? NETunnelProviderProtocol
+                    else { continue }
+                    if proto.migrateConfigurationIfNeeded(
+                        called: tunnelManager.localizedDescription ?? "unknown")
+                    {
+                        tunnelManager.saveToPreferences { _ in }
+                    }
+                    #if os(iOS)
+                        let passwordRef =
+                            proto.verifyConfigurationReference() ? proto.passwordReference : nil
+                    #elseif os(macOS)
+                        let passwordRef: Data?
+                        if proto.providerConfiguration?["UID"] as? uid_t == getuid() {
+                            passwordRef =
+                                proto.verifyConfigurationReference() ? proto.passwordReference : nil
+                        } else {
+                            passwordRef = proto.passwordReference  // To handle multiple users in macOS, we skip verifying
+                        }
+                    #else
+                        #error("Unimplemented")
+                    #endif
+                    if let ref = passwordRef {
+                        refs.insert(ref)
+                    } else {
+                        wg_log(
+                            .info,
+                            message:
+                                "Removing orphaned tunnel with non-verifying keychain entry: \(tunnelManager.localizedDescription ?? "<unknown>")"
+                        )
+                        tunnelManager.removeFromPreferences { _ in }
+                        tunnelManagers.remove(at: index)
+                    }
                 }
-                guard let proto = tunnelManager.protocolConfiguration as? NETunnelProviderProtocol else { continue }
-                if proto.migrateConfigurationIfNeeded(called: tunnelManager.localizedDescription ?? "unknown") {
-                    tunnelManager.saveToPreferences { _ in }
-                }
+                Keychain.deleteReferences(except: refs)
                 #if os(iOS)
-                let passwordRef = proto.verifyConfigurationReference() ? proto.passwordReference : nil
-                #elseif os(macOS)
-                let passwordRef: Data?
-                if proto.providerConfiguration?["UID"] as? uid_t == getuid() {
-                    passwordRef = proto.verifyConfigurationReference() ? proto.passwordReference : nil
-                } else {
-                    passwordRef = proto.passwordReference // To handle multiple users in macOS, we skip verifying
-                }
-                #else
-                #error("Unimplemented")
+                    RecentTunnelsTracker.cleanupTunnels(except: tunnelNames)
                 #endif
-                if let ref = passwordRef {
-                    refs.insert(ref)
-                } else {
-                    wg_log(.info, message: "Removing orphaned tunnel with non-verifying keychain entry: \(tunnelManager.localizedDescription ?? "<unknown>")")
-                    tunnelManager.removeFromPreferences { _ in }
-                    tunnelManagers.remove(at: index)
-                }
+                completionHandler(.success(TunnelsManager(tunnelProviders: tunnelManagers)))
             }
-            Keychain.deleteReferences(except: refs)
-            #if os(iOS)
-            RecentTunnelsTracker.cleanupTunnels(except: tunnelNames)
-            #endif
-            completionHandler(.success(TunnelsManager(tunnelProviders: tunnelManagers)))
-        }
         #endif
     }
 
@@ -122,13 +140,19 @@ class TunnelsManager {
                 }
             }
             for loadedTunnelProvider in loadedTunnelProviders {
-                if let matchingTunnel = self.tunnels.first(where: { loadedTunnelProvider.isEquivalentTo($0) }) {
+                if let matchingTunnel = self.tunnels.first(where: {
+                    loadedTunnelProvider.isEquivalentTo($0)
+                }) {
                     matchingTunnel.tunnelProvider = loadedTunnelProvider
                     matchingTunnel.refreshStatus()
                 } else {
                     // Tunnel was added outside the app
-                    if let proto = loadedTunnelProvider.protocolConfiguration as? NETunnelProviderProtocol {
-                        if proto.migrateConfigurationIfNeeded(called: loadedTunnelProvider.localizedDescription ?? "unknown") {
+                    if let proto = loadedTunnelProvider.protocolConfiguration
+                        as? NETunnelProviderProtocol
+                    {
+                        if proto.migrateConfigurationIfNeeded(
+                            called: loadedTunnelProvider.localizedDescription ?? "unknown")
+                        {
                             loadedTunnelProvider.saveToPreferences { _ in }
                         }
                     }
@@ -141,7 +165,10 @@ class TunnelsManager {
         }
     }
 
-    func add(tunnelConfiguration: TunnelConfiguration, onDemandOption: ActivateOnDemandOption = .off, completionHandler: @escaping (Result<TunnelContainer, TunnelsManagerError>) -> Void) {
+    func add(
+        tunnelConfiguration: TunnelConfiguration, onDemandOption: ActivateOnDemandOption = .off,
+        completionHandler: @escaping (Result<TunnelContainer, TunnelsManagerError>) -> Void
+    ) {
         let tunnelName = tunnelConfiguration.name ?? ""
         if tunnelName.isEmpty {
             completionHandler(.failure(TunnelsManagerError.tunnelNameEmpty))
@@ -164,24 +191,26 @@ class TunnelsManager {
         tunnelProviderManager.saveToPreferences { [weak self] error in
             if let error = error {
                 wg_log(.error, message: "Add: Saving configuration failed: \(error)")
-                (tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol)?.destroyConfigurationReference()
-                completionHandler(.failure(TunnelsManagerError.systemErrorOnAddTunnel(systemError: error)))
+                (tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol)?
+                    .destroyConfigurationReference()
+                completionHandler(
+                    .failure(TunnelsManagerError.systemErrorOnAddTunnel(systemError: error)))
                 return
             }
 
             guard let self = self else { return }
 
             #if os(iOS)
-            // HACK: In iOS, adding a tunnel causes deactivation of any currently active tunnel.
-            // This is an ugly hack to reactivate the tunnel that has been deactivated like that.
-            if let activeTunnel = activeTunnel {
-                if activeTunnel.status == .inactive || activeTunnel.status == .deactivating {
-                    self.startActivation(of: activeTunnel)
+                // HACK: In iOS, adding a tunnel causes deactivation of any currently active tunnel.
+                // This is an ugly hack to reactivate the tunnel that has been deactivated like that.
+                if let activeTunnel = activeTunnel {
+                    if activeTunnel.status == .inactive || activeTunnel.status == .deactivating {
+                        self.startActivation(of: activeTunnel)
+                    }
+                    if activeTunnel.status == .active || activeTunnel.status == .activating {
+                        activeTunnel.status = .restarting
+                    }
                 }
-                if activeTunnel.status == .active || activeTunnel.status == .activating {
-                    activeTunnel.status = .restarting
-                }
-            }
             #endif
 
             let tunnel = TunnelContainer(tunnel: tunnelProviderManager)
@@ -192,13 +221,19 @@ class TunnelsManager {
         }
     }
 
-    func addMultiple(tunnelConfigurations: [TunnelConfiguration], completionHandler: @escaping (UInt, TunnelsManagerError?) -> Void) {
+    func addMultiple(
+        tunnelConfigurations: [TunnelConfiguration],
+        completionHandler: @escaping (UInt, TunnelsManagerError?) -> Void
+    ) {
         // Temporarily pause observation of changes to VPN configurations to prevent the feedback
         // loop that causes `reload()` to be called on each newly added tunnel, which significantly
         // impacts performance.
         configurationsObservationToken = nil
 
-        self.addMultiple(tunnelConfigurations: ArraySlice(tunnelConfigurations), numberSuccessful: 0, lastError: nil) { [weak self] numSucceeded, error in
+        self.addMultiple(
+            tunnelConfigurations: ArraySlice(tunnelConfigurations), numberSuccessful: 0,
+            lastError: nil
+        ) { [weak self] numSucceeded, error in
             completionHandler(numSucceeded, error)
 
             // Restart observation of changes to VPN configrations.
@@ -209,7 +244,11 @@ class TunnelsManager {
         }
     }
 
-    private func addMultiple(tunnelConfigurations: ArraySlice<TunnelConfiguration>, numberSuccessful: UInt, lastError: TunnelsManagerError?, completionHandler: @escaping (UInt, TunnelsManagerError?) -> Void) {
+    private func addMultiple(
+        tunnelConfigurations: ArraySlice<TunnelConfiguration>, numberSuccessful: UInt,
+        lastError: TunnelsManagerError?,
+        completionHandler: @escaping (UInt, TunnelsManagerError?) -> Void
+    ) {
         guard let head = tunnelConfigurations.first else {
             completionHandler(numberSuccessful, lastError)
             return
@@ -225,15 +264,19 @@ class TunnelsManager {
                 case .success:
                     numberSuccessfulCount = numberSuccessful + 1
                 }
-                self?.addMultiple(tunnelConfigurations: tail, numberSuccessful: numberSuccessfulCount, lastError: lastError, completionHandler: completionHandler)
+                self?.addMultiple(
+                    tunnelConfigurations: tail, numberSuccessful: numberSuccessfulCount,
+                    lastError: lastError, completionHandler: completionHandler)
             }
         }
     }
 
-    func modify(tunnel: TunnelContainer, tunnelConfiguration: TunnelConfiguration,
-                onDemandOption: ActivateOnDemandOption,
-                shouldEnsureOnDemandEnabled: Bool = false,
-                completionHandler: @escaping (TunnelsManagerError?) -> Void) {
+    func modify(
+        tunnel: TunnelContainer, tunnelConfiguration: TunnelConfiguration,
+        onDemandOption: ActivateOnDemandOption,
+        shouldEnsureOnDemandEnabled: Bool = false,
+        completionHandler: @escaping (TunnelsManagerError?) -> Void
+    ) {
         let tunnelName = tunnelConfiguration.name ?? ""
         if tunnelName.isEmpty {
             completionHandler(TunnelsManagerError.tunnelNameEmpty)
@@ -242,12 +285,16 @@ class TunnelsManager {
 
         let tunnelProviderManager = tunnel.tunnelProvider
 
-        let isIntroducingOnDemandRules = (tunnelProviderManager.onDemandRules ?? []).isEmpty && onDemandOption != .off
-        if isIntroducingOnDemandRules && tunnel.status != .inactive && tunnel.status != .deactivating {
+        let isIntroducingOnDemandRules =
+            (tunnelProviderManager.onDemandRules ?? []).isEmpty && onDemandOption != .off
+        if isIntroducingOnDemandRules && tunnel.status != .inactive
+            && tunnel.status != .deactivating
+        {
             tunnel.onDeactivated = { [weak self] in
-                self?.modify(tunnel: tunnel, tunnelConfiguration: tunnelConfiguration,
-                             onDemandOption: onDemandOption, shouldEnsureOnDemandEnabled: true,
-                             completionHandler: completionHandler)
+                self?.modify(
+                    tunnel: tunnel, tunnelConfiguration: tunnelConfiguration,
+                    onDemandOption: onDemandOption, shouldEnsureOnDemandEnabled: true,
+                    completionHandler: completionHandler)
             }
             self.startDeactivation(of: tunnel)
             return
@@ -272,7 +319,8 @@ class TunnelsManager {
         }
         tunnelProviderManager.isEnabled = true
 
-        let isActivatingOnDemand = !tunnelProviderManager.isOnDemandEnabled && shouldEnsureOnDemandEnabled
+        let isActivatingOnDemand =
+            !tunnelProviderManager.isOnDemandEnabled && shouldEnsureOnDemandEnabled
         onDemandOption.apply(on: tunnelProviderManager)
         if shouldEnsureOnDemandEnabled {
             tunnelProviderManager.isOnDemandEnabled = true
@@ -292,13 +340,15 @@ class TunnelsManager {
                 let newIndex = self.tunnels.firstIndex(of: tunnel)!
                 self.tunnelsListDelegate?.tunnelMoved(from: oldIndex, to: newIndex)
                 #if os(iOS)
-                RecentTunnelsTracker.handleTunnelRenamed(oldName: oldName, newName: tunnelName)
+                    RecentTunnelsTracker.handleTunnelRenamed(oldName: oldName, newName: tunnelName)
                 #endif
             }
             self.tunnelsListDelegate?.tunnelModified(at: self.tunnels.firstIndex(of: tunnel)!)
 
             if isTunnelConfigurationChanged {
-                if tunnel.status == .active || tunnel.status == .activating || tunnel.status == .reasserting {
+                if tunnel.status == .active || tunnel.status == .activating
+                    || tunnel.status == .reasserting
+                {
                     // Turn off the tunnel, and then turn it back on, so the changes are made effective
                     tunnel.status = .restarting
                     (tunnel.tunnelProvider.connection as? NETunnelProviderSession)?.stopTunnel()
@@ -311,8 +361,12 @@ class TunnelsManager {
                 tunnelProviderManager.loadFromPreferences { error in
                     tunnel.isActivateOnDemandEnabled = tunnelProviderManager.isOnDemandEnabled
                     if let error = error {
-                        wg_log(.error, message: "Modify: Re-loading after saving configuration failed: \(error)")
-                        completionHandler(TunnelsManagerError.systemErrorOnModifyTunnel(systemError: error))
+                        wg_log(
+                            .error,
+                            message:
+                                "Modify: Re-loading after saving configuration failed: \(error)")
+                        completionHandler(
+                            TunnelsManagerError.systemErrorOnModifyTunnel(systemError: error))
                     } else {
                         completionHandler(nil)
                     }
@@ -323,16 +377,20 @@ class TunnelsManager {
         }
     }
 
-    func remove(tunnel: TunnelContainer, completionHandler: @escaping (TunnelsManagerError?) -> Void) {
+    func remove(
+        tunnel: TunnelContainer, completionHandler: @escaping (TunnelsManagerError?) -> Void
+    ) {
         let tunnelProviderManager = tunnel.tunnelProvider
         #if os(macOS)
-        if tunnel.isTunnelAvailableToUser {
-            (tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol)?.destroyConfigurationReference()
-        }
+            if tunnel.isTunnelAvailableToUser {
+                (tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol)?
+                    .destroyConfigurationReference()
+            }
         #elseif os(iOS)
-        (tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol)?.destroyConfigurationReference()
+            (tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol)?
+                .destroyConfigurationReference()
         #else
-        #error("Unimplemented")
+            #error("Unimplemented")
         #endif
         tunnelProviderManager.removeFromPreferences { [weak self] error in
             if let error = error {
@@ -347,12 +405,14 @@ class TunnelsManager {
             completionHandler(nil)
 
             #if os(iOS)
-            RecentTunnelsTracker.handleTunnelRemoved(tunnelName: tunnel.name)
+                RecentTunnelsTracker.handleTunnelRemoved(tunnelName: tunnel.name)
             #endif
         }
     }
 
-    func removeMultiple(tunnels: [TunnelContainer], completionHandler: @escaping (TunnelsManagerError?) -> Void) {
+    func removeMultiple(
+        tunnels: [TunnelContainer], completionHandler: @escaping (TunnelsManagerError?) -> Void
+    ) {
         // Temporarily pause observation of changes to VPN configurations to prevent the feedback
         // loop that causes `reload()` to be called for each removed tunnel, which significantly
         // impacts performance.
@@ -369,7 +429,10 @@ class TunnelsManager {
         }
     }
 
-    private func removeMultiple(tunnels: ArraySlice<TunnelContainer>, completionHandler: @escaping (TunnelsManagerError?) -> Void) {
+    private func removeMultiple(
+        tunnels: ArraySlice<TunnelContainer>,
+        completionHandler: @escaping (TunnelsManagerError?) -> Void
+    ) {
         guard let head = tunnels.first else {
             completionHandler(nil)
             return
@@ -386,9 +449,13 @@ class TunnelsManager {
         }
     }
 
-    func setOnDemandEnabled(_ isOnDemandEnabled: Bool, on tunnel: TunnelContainer, completionHandler: @escaping (TunnelsManagerError?) -> Void) {
+    func setOnDemandEnabled(
+        _ isOnDemandEnabled: Bool, on tunnel: TunnelContainer,
+        completionHandler: @escaping (TunnelsManagerError?) -> Void
+    ) {
         let tunnelProviderManager = tunnel.tunnelProvider
-        let isCurrentlyEnabled = (tunnelProviderManager.isOnDemandEnabled && tunnelProviderManager.isEnabled)
+        let isCurrentlyEnabled =
+            (tunnelProviderManager.isOnDemandEnabled && tunnelProviderManager.isEnabled)
         guard isCurrentlyEnabled != isOnDemandEnabled else {
             completionHandler(nil)
             return
@@ -409,8 +476,13 @@ class TunnelsManager {
                     // isActivateOnDemandEnabled will get changed in reload(), but no harm in setting it here too
                     tunnel.isActivateOnDemandEnabled = tunnelProviderManager.isOnDemandEnabled
                     if let error = error {
-                        wg_log(.error, message: "Modify On-Demand: Re-loading after saving configuration failed: \(error)")
-                        completionHandler(TunnelsManagerError.systemErrorOnModifyTunnel(systemError: error))
+                        wg_log(
+                            .error,
+                            message:
+                                "Modify On-Demand: Re-loading after saving configuration failed: \(error)"
+                        )
+                        completionHandler(
+                            TunnelsManagerError.systemErrorOnModifyTunnel(systemError: error))
                         return
                     }
                     completionHandler(nil)
@@ -453,9 +525,10 @@ class TunnelsManager {
     }
 
     func startActivation(of tunnel: TunnelContainer) {
-        guard tunnels.contains(tunnel) else { return } // Ensure it's not deleted
+        guard tunnels.contains(tunnel) else { return }  // Ensure it's not deleted
         guard tunnel.status == .inactive else {
-            activationDelegate?.tunnelActivationAttemptFailed(tunnel: tunnel, error: .tunnelIsNotInactive)
+            activationDelegate?.tunnelActivationAttemptFailed(
+                tunnel: tunnel, error: .tunnelIsNotInactive)
             return
         }
 
@@ -464,14 +537,22 @@ class TunnelsManager {
         }
 
         if let tunnelInOperation = tunnels.first(where: { $0.status != .inactive }) {
-            wg_log(.info, message: "Tunnel '\(tunnel.name)' waiting for deactivation of '\(tunnelInOperation.name)'")
+            wg_log(
+                .info,
+                message:
+                    "Tunnel '\(tunnel.name)' waiting for deactivation of '\(tunnelInOperation.name)'"
+            )
             tunnel.status = .waiting
             activateWaitingTunnelOnDeactivation(of: tunnelInOperation)
             if tunnelInOperation.status != .deactivating {
                 if tunnelInOperation.isActivateOnDemandEnabled {
                     setOnDemandEnabled(false, on: tunnelInOperation) { [weak self] error in
                         guard error == nil else {
-                            wg_log(.error, message: "Unable to activate tunnel '\(tunnel.name)' because on-demand could not be disabled on active tunnel '\(tunnel.name)'")
+                            wg_log(
+                                .error,
+                                message:
+                                    "Unable to activate tunnel '\(tunnel.name)' because on-demand could not be disabled on active tunnel '\(tunnel.name)'"
+                            )
                             return
                         }
                         self?.startDeactivation(of: tunnelInOperation)
@@ -484,13 +565,13 @@ class TunnelsManager {
         }
 
         #if targetEnvironment(simulator)
-        tunnel.status = .active
+            tunnel.status = .active
         #else
-        tunnel.startActivation(activationDelegate: activationDelegate)
+            tunnel.startActivation(activationDelegate: activationDelegate)
         #endif
 
         #if os(iOS)
-        RecentTunnelsTracker.handleTunnelActivated(tunnelName: tunnel.name)
+            RecentTunnelsTracker.handleTunnelActivated(tunnelName: tunnel.name)
         #endif
     }
 
@@ -498,9 +579,9 @@ class TunnelsManager {
         tunnel.isAttemptingActivation = false
         guard tunnel.status != .inactive && tunnel.status != .deactivating else { return }
         #if targetEnvironment(simulator)
-        tunnel.status = .inactive
+            tunnel.status = .inactive
         #else
-        tunnel.startDeactivation()
+            tunnel.startDeactivation()
         #endif
     }
 
@@ -521,58 +602,76 @@ class TunnelsManager {
     }
 
     private func startObservingTunnelStatuses() {
-        statusObservationToken = NotificationCenter.default.observe(name: .NEVPNStatusDidChange, object: nil, queue: OperationQueue.main) { [weak self] statusChangeNotification in
+        statusObservationToken = NotificationCenter.default.observe(
+            name: .NEVPNStatusDidChange, object: nil, queue: OperationQueue.main
+        ) { [weak self] statusChangeNotification in
             guard let self = self,
                 let session = statusChangeNotification.object as? NETunnelProviderSession,
                 let tunnelProvider = session.manager as? NETunnelProviderManager,
-                let tunnel = self.tunnels.first(where: { $0.tunnelProvider == tunnelProvider }) else { return }
+                let tunnel = self.tunnels.first(where: { $0.tunnelProvider == tunnelProvider })
+            else { return }
 
-            wg_log(.debug, message: "Tunnel '\(tunnel.name)' connection status changed to '\(tunnel.tunnelProvider.connection.status)'")
+            wg_log(
+                .debug,
+                message:
+                    "Tunnel '\(tunnel.name)' connection status changed to '\(tunnel.tunnelProvider.connection.status)'"
+            )
 
             if session.status == .connected {
                 #if os(iOS)
-                if tunnel.handshakeState == .confirmed {
+                    if tunnel.handshakeState == .confirmed {
+                        if tunnel.isAttemptingActivation {
+                            tunnel.isAttemptingActivation = false
+                            self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
+                        }
+                    } else {
+                        let awaitingDelegate = tunnel.isAttemptingActivation
+                        let connectedAt = Date()
+                        tunnel.beginAwaitingFreshHandshakeIfNeeded(connectedAt: connectedAt) {
+                            [weak self, weak tunnel] result in
+                            guard let self = self, let tunnel = tunnel else { return }
+                            if awaitingDelegate {
+                                tunnel.isAttemptingActivation = false
+                            }
+                            switch result {
+                            case .success:
+                                if awaitingDelegate {
+                                    self.activationDelegate?.tunnelActivationSucceeded(
+                                        tunnel: tunnel)
+                                }
+                            case .failure(let error):
+                                if awaitingDelegate {
+                                    self.activationDelegate?.tunnelActivationFailed(
+                                        tunnel: tunnel,
+                                        error: .handshakeTimedOut(timeout: error.timeoutInterval))
+                                }
+                                self.startDeactivation(of: tunnel)
+                            }
+                        }
+                    }
+                #else
                     if tunnel.isAttemptingActivation {
                         tunnel.isAttemptingActivation = false
                         self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
                     }
-                } else {
-                    let awaitingDelegate = tunnel.isAttemptingActivation
-                    let connectedAt = Date()
-                    tunnel.beginAwaitingFreshHandshakeIfNeeded(connectedAt: connectedAt) { [weak self, weak tunnel] result in
-                        guard let self = self, let tunnel = tunnel else { return }
-                        if awaitingDelegate {
-                            tunnel.isAttemptingActivation = false
-                        }
-                        switch result {
-                        case .success:
-                            if awaitingDelegate {
-                                self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
-                            }
-                        case .failure(let error):
-                            if awaitingDelegate {
-                                self.activationDelegate?.tunnelActivationFailed(tunnel: tunnel, error: .handshakeTimedOut(timeout: error.timeoutInterval))
-                            }
-                            self.startDeactivation(of: tunnel)
-                        }
-                    }
-                }
-                #else
-                if tunnel.isAttemptingActivation {
-                    tunnel.isAttemptingActivation = false
-                    self.activationDelegate?.tunnelActivationSucceeded(tunnel: tunnel)
-                }
                 #endif
             } else if session.status == .disconnected {
                 #if os(iOS)
-                tunnel.cancelHandshakeMonitoring()
+                    tunnel.cancelHandshakeMonitoring()
                 #endif
                 if tunnel.isAttemptingActivation {
                     tunnel.isAttemptingActivation = false
                     if let (title, message) = lastErrorTextFromNetworkExtension(for: tunnel) {
-                        self.activationDelegate?.tunnelActivationFailed(tunnel: tunnel, error: .activationFailedWithExtensionError(title: title, message: message, wasOnDemandEnabled: tunnelProvider.isOnDemandEnabled))
+                        self.activationDelegate?.tunnelActivationFailed(
+                            tunnel: tunnel,
+                            error: .activationFailedWithExtensionError(
+                                title: title, message: message,
+                                wasOnDemandEnabled: tunnelProvider.isOnDemandEnabled))
                     } else {
-                        self.activationDelegate?.tunnelActivationFailed(tunnel: tunnel, error: .activationFailed(wasOnDemandEnabled: tunnelProvider.isOnDemandEnabled))
+                        self.activationDelegate?.tunnelActivationFailed(
+                            tunnel: tunnel,
+                            error: .activationFailed(
+                                wasOnDemandEnabled: tunnelProvider.isOnDemandEnabled))
                     }
                 }
             }
@@ -592,7 +691,9 @@ class TunnelsManager {
     }
 
     func startObservingTunnelConfigurations() {
-        configurationsObservationToken = NotificationCenter.default.observe(name: .NEVPNConfigurationChange, object: nil, queue: OperationQueue.main) { [weak self] _ in
+        configurationsObservationToken = NotificationCenter.default.observe(
+            name: .NEVPNConfigurationChange, object: nil, queue: OperationQueue.main
+        ) { [weak self] _ in
             DispatchQueue.main.async { [weak self] in
                 // We schedule reload() in a subsequent runloop to ensure that the completion handler of loadAllFromPreferences
                 // (reload() calls loadAllFromPreferences) is called after the completion handler of the saveToPreferences or
@@ -604,15 +705,24 @@ class TunnelsManager {
     }
 
     static func tunnelNameIsLessThan(_ lhs: String, _ rhs: String) -> Bool {
-        return lhs.compare(rhs, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive, .numeric]) == .orderedAscending
+        return lhs.compare(
+            rhs, options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive, .numeric])
+            == .orderedAscending
     }
 }
 
-private func lastErrorTextFromNetworkExtension(for tunnel: TunnelContainer) -> (title: String, message: String)? {
+private func lastErrorTextFromNetworkExtension(for tunnel: TunnelContainer) -> (
+    title: String, message: String
+)? {
     guard let lastErrorFileURL = FileManager.networkExtensionLastErrorFileURL else { return nil }
     guard let lastErrorData = try? Data(contentsOf: lastErrorFileURL) else { return nil }
-    guard let lastErrorStrings = String(data: lastErrorData, encoding: .utf8)?.splitToArray(separator: "\n") else { return nil }
-    guard lastErrorStrings.count == 2 && tunnel.activationAttemptId == lastErrorStrings[0] else { return nil }
+    guard
+        let lastErrorStrings = String(data: lastErrorData, encoding: .utf8)?.splitToArray(
+            separator: "\n")
+    else { return nil }
+    guard lastErrorStrings.count == 2 && tunnel.activationAttemptId == lastErrorStrings[0] else {
+        return nil
+    }
 
     if let extensionError = PacketTunnelProviderError(rawValue: lastErrorStrings[1]) {
         return extensionError.alertText
@@ -623,16 +733,16 @@ private func lastErrorTextFromNetworkExtension(for tunnel: TunnelContainer) -> (
 
 class TunnelContainer: NSObject {
     #if os(iOS)
-    private enum HandshakeConstants {
-        static let pollInterval: TimeInterval = 1.0
-        static let acceptanceSkew: TimeInterval = 1.0
-        static let defaultTimeout: TimeInterval = 12.0
-    }
+        private enum HandshakeConstants {
+            static let pollInterval: TimeInterval = 1.0
+            static let acceptanceSkew: TimeInterval = 1.0
+            static let defaultTimeout: TimeInterval = 12.0
+        }
     #endif
     @objc dynamic var name: String
     @objc dynamic var status: TunnelStatus
     #if os(iOS)
-    @objc dynamic var handshakeState: TunnelHandshakeState = .idle
+        @objc dynamic var handshakeState: TunnelHandshakeState = .idle
     #endif
 
     @objc dynamic var isActivateOnDemandEnabled: Bool
@@ -642,9 +752,14 @@ class TunnelContainer: NSObject {
         didSet {
             if isAttemptingActivation {
                 self.activationTimer?.invalidate()
-                let activationTimer = Timer(timeInterval: 5 /* seconds */, repeats: true) { [weak self] _ in
+                let activationTimer = Timer(timeInterval: 5 /* seconds */, repeats: true) {
+                    [weak self] _ in
                     guard let self = self else { return }
-                    wg_log(.debug, message: "Status update notification timeout for tunnel '\(self.name)'. Tunnel status is now '\(self.tunnelProvider.connection.status)'.")
+                    wg_log(
+                        .debug,
+                        message:
+                            "Status update notification timeout for tunnel '\(self.name)'. Tunnel status is now '\(self.tunnelProvider.connection.status)'."
+                    )
                     switch self.tunnelProvider.connection.status {
                     case .connected, .disconnected, .invalid:
                         self.activationTimer?.invalidate()
@@ -664,15 +779,15 @@ class TunnelContainer: NSObject {
     var deactivationTimer: Timer?
     var onDeactivated: (() -> Void)?
     #if os(iOS)
-    private var handshakePollTimer: Timer?
-    private var handshakeTimeoutTimer: Timer?
-    private var handshakeTimeoutDeadline: Date?
-    private var handshakeCutoffDate: Date?
-    private var pendingTimeoutInterval: TimeInterval?
-    private var handshakeCompletion: ((Result<Date, TunnelHandshakeError>) -> Void)?
-    private var handshakePollInFlight = false
-    private var appDidEnterBackgroundObserver: NSObjectProtocol?
-    private var appWillEnterForegroundObserver: NSObjectProtocol?
+        private var handshakePollTimer: Timer?
+        private var handshakeTimeoutTimer: Timer?
+        private var handshakeTimeoutDeadline: Date?
+        private var handshakeCutoffDate: Date?
+        private var pendingTimeoutInterval: TimeInterval?
+        private var handshakeCompletion: ((Result<Date, TunnelHandshakeError>) -> Void)?
+        private var handshakePollInFlight = false
+        private var appDidEnterBackgroundObserver: NSObjectProtocol?
+        private var appWillEnterForegroundObserver: NSObjectProtocol?
     #endif
 
     fileprivate var tunnelProvider: NETunnelProviderManager {
@@ -691,9 +806,10 @@ class TunnelContainer: NSObject {
     }
 
     #if os(macOS)
-    var isTunnelAvailableToUser: Bool {
-        return (tunnelProvider.protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration?["UID"] as? uid_t == getuid()
-    }
+        var isTunnelAvailableToUser: Bool {
+            return (tunnelProvider.protocolConfiguration as? NETunnelProviderProtocol)?
+                .providerConfiguration?["UID"] as? uid_t == getuid()
+        }
     #endif
 
     init(tunnel: NETunnelProviderManager) {
@@ -706,71 +822,118 @@ class TunnelContainer: NSObject {
         super.init()
     }
 
-    func getRuntimeTunnelConfiguration(completionHandler: @escaping ((TunnelConfiguration?) -> Void)) {
-        guard status != .inactive, let session = tunnelProvider.connection as? NETunnelProviderSession else {
+    func getRuntimeTunnelConfiguration(
+        completionHandler: @escaping ((TunnelConfiguration?) -> Void)
+    ) {
+        guard status != .inactive,
+            let session = tunnelProvider.connection as? NETunnelProviderSession
+        else {
             completionHandler(tunnelConfiguration)
             return
         }
-        guard nil != (try? session.sendProviderMessage(Data([ UInt8(0) ]), responseHandler: {
-            guard self.status != .inactive, let data = $0, let base = self.tunnelConfiguration, let settings = String(data: data, encoding: .utf8) else {
-                completionHandler(self.tunnelConfiguration)
-                return
-            }
-            completionHandler((try? TunnelConfiguration(fromUapiConfig: settings, basedOn: base)) ?? self.tunnelConfiguration)
-        })) else {
+        guard
+            nil
+                != (try? session.sendProviderMessage(
+                    Data([UInt8(0)]),
+                    responseHandler: {
+                        guard self.status != .inactive, let data = $0,
+                            let base = self.tunnelConfiguration,
+                            let settings = String(data: data, encoding: .utf8)
+                        else {
+                            completionHandler(self.tunnelConfiguration)
+                            return
+                        }
+                        do {
+                            let runtime = try TunnelConfiguration(
+                                fromUapiConfig: settings, basedOn: base)
+                            completionHandler(runtime)
+                        } catch {
+                            var keys = Set<String>()
+                            for line in settings.split(separator: "\n") {
+                                if let equalsIndex = line.firstIndex(of: "=") {
+                                    keys.insert(String(line[..<equalsIndex]))
+                                }
+                            }
+                            let keyList = keys.sorted().joined(separator: ", ")
+                            wg_log(
+                                .error,
+                                message: "Runtime config parse failed: \(error). Keys: [\(keyList)]"
+                            )
+                            completionHandler(self.tunnelConfiguration)
+                        }
+                    }))
+        else {
             completionHandler(tunnelConfiguration)
             return
         }
     }
 
     func refreshStatus() {
-        if (status == .restarting) || (status == .waiting && tunnelProvider.connection.status == .disconnected) {
+        if (status == .restarting)
+            || (status == .waiting && tunnelProvider.connection.status == .disconnected)
+        {
             return
         }
         let systemStatus = tunnelProvider.connection.status
         #if os(iOS)
-        if systemStatus == .connected {
-            status = (handshakeState == .waiting) ? .activating : TunnelStatus(from: systemStatus)
-        } else {
-            if handshakeState != .idle {
-                cancelHandshakeMonitoring()
+            if systemStatus == .connected {
+                status =
+                    (handshakeState == .waiting) ? .activating : TunnelStatus(from: systemStatus)
+            } else {
+                if handshakeState != .idle {
+                    cancelHandshakeMonitoring()
+                }
+                status = TunnelStatus(from: systemStatus)
             }
-            status = TunnelStatus(from: systemStatus)
-        }
         #else
-        status = TunnelStatus(from: systemStatus)
+            status = TunnelStatus(from: systemStatus)
         #endif
     }
 
-    fileprivate func startActivation(recursionCount: UInt = 0, lastError: Error? = nil, activationDelegate: TunnelsManagerActivationDelegate?) {
+    fileprivate func startActivation(
+        recursionCount: UInt = 0, lastError: Error? = nil,
+        activationDelegate: TunnelsManagerActivationDelegate?
+    ) {
         if recursionCount >= 8 {
-            wg_log(.error, message: "startActivation: Failed after 8 attempts. Giving up with \(lastError!)")
-            activationDelegate?.tunnelActivationAttemptFailed(tunnel: self, error: .failedBecauseOfTooManyErrors(lastSystemError: lastError!))
+            wg_log(
+                .error,
+                message: "startActivation: Failed after 8 attempts. Giving up with \(lastError!)")
+            activationDelegate?.tunnelActivationAttemptFailed(
+                tunnel: self, error: .failedBecauseOfTooManyErrors(lastSystemError: lastError!))
             return
         }
 
         wg_log(.debug, message: "startActivation: Entering (tunnel: \(name))")
 
-        status = .activating // Ensure that no other tunnel can attempt activation until this tunnel is done trying
+        status = .activating  // Ensure that no other tunnel can attempt activation until this tunnel is done trying
 
         #if os(iOS)
-        cancelHandshakeMonitoring()
+            cancelHandshakeMonitoring()
         #endif
 
         guard tunnelProvider.isEnabled else {
             // In case the tunnel had gotten disabled, re-enable and save it,
             // then call this function again.
-            wg_log(.debug, staticMessage: "startActivation: Tunnel is disabled. Re-enabling and saving")
+            wg_log(
+                .debug, staticMessage: "startActivation: Tunnel is disabled. Re-enabling and saving"
+            )
             tunnelProvider.isEnabled = true
             tunnelProvider.saveToPreferences { [weak self] error in
                 guard let self = self else { return }
                 if error != nil {
                     wg_log(.error, message: "Error saving tunnel after re-enabling: \(error!)")
-                    activationDelegate?.tunnelActivationAttemptFailed(tunnel: self, error: .failedWhileSaving(systemError: error!))
+                    activationDelegate?.tunnelActivationAttemptFailed(
+                        tunnel: self, error: .failedWhileSaving(systemError: error!))
                     return
                 }
-                wg_log(.debug, staticMessage: "startActivation: Tunnel saved after re-enabling, invoking startActivation")
-                self.startActivation(recursionCount: recursionCount + 1, lastError: NEVPNError(NEVPNError.configurationUnknown), activationDelegate: activationDelegate)
+                wg_log(
+                    .debug,
+                    staticMessage:
+                        "startActivation: Tunnel saved after re-enabling, invoking startActivation")
+                self.startActivation(
+                    recursionCount: recursionCount + 1,
+                    lastError: NEVPNError(NEVPNError.configurationUnknown),
+                    activationDelegate: activationDelegate)
             }
             return
         }
@@ -781,7 +944,9 @@ class TunnelContainer: NSObject {
             isAttemptingActivation = true
             let activationAttemptId = UUID().uuidString
             self.activationAttemptId = activationAttemptId
-            try (tunnelProvider.connection as? NETunnelProviderSession)?.startTunnel(options: ["activationAttemptId": activationAttemptId])
+            try (tunnelProvider.connection as? NETunnelProviderSession)?.startTunnel(options: [
+                "activationAttemptId": activationAttemptId
+            ])
             wg_log(.debug, staticMessage: "startActivation: Success")
             activationDelegate?.tunnelActivationAttemptSucceeded(tunnel: self)
         } catch let error {
@@ -789,26 +954,38 @@ class TunnelContainer: NSObject {
             guard let systemError = error as? NEVPNError else {
                 wg_log(.error, message: "Failed to activate tunnel: Error: \(error)")
                 status = .inactive
-                activationDelegate?.tunnelActivationAttemptFailed(tunnel: self, error: .failedWhileStarting(systemError: error))
+                activationDelegate?.tunnelActivationAttemptFailed(
+                    tunnel: self, error: .failedWhileStarting(systemError: error))
                 return
             }
-            guard systemError.code == NEVPNError.configurationInvalid || systemError.code == NEVPNError.configurationStale else {
+            guard
+                systemError.code == NEVPNError.configurationInvalid
+                    || systemError.code == NEVPNError.configurationStale
+            else {
                 wg_log(.error, message: "Failed to activate tunnel: VPN Error: \(error)")
                 status = .inactive
-                activationDelegate?.tunnelActivationAttemptFailed(tunnel: self, error: .failedWhileStarting(systemError: systemError))
+                activationDelegate?.tunnelActivationAttemptFailed(
+                    tunnel: self, error: .failedWhileStarting(systemError: systemError))
                 return
             }
-            wg_log(.debug, staticMessage: "startActivation: Will reload tunnel and then try to start it.")
+            wg_log(
+                .debug,
+                staticMessage: "startActivation: Will reload tunnel and then try to start it.")
             tunnelProvider.loadFromPreferences { [weak self] error in
                 guard let self = self else { return }
                 if error != nil {
                     wg_log(.error, message: "startActivation: Error reloading tunnel: \(error!)")
                     self.status = .inactive
-                    activationDelegate?.tunnelActivationAttemptFailed(tunnel: self, error: .failedWhileLoading(systemError: systemError))
+                    activationDelegate?.tunnelActivationAttemptFailed(
+                        tunnel: self, error: .failedWhileLoading(systemError: systemError))
                     return
                 }
-                wg_log(.debug, staticMessage: "startActivation: Tunnel reloaded, invoking startActivation")
-                self.startActivation(recursionCount: recursionCount + 1, lastError: systemError, activationDelegate: activationDelegate)
+                wg_log(
+                    .debug,
+                    staticMessage: "startActivation: Tunnel reloaded, invoking startActivation")
+                self.startActivation(
+                    recursionCount: recursionCount + 1, lastError: systemError,
+                    activationDelegate: activationDelegate)
             }
         }
     }
@@ -816,14 +993,14 @@ class TunnelContainer: NSObject {
     fileprivate func startDeactivation() {
         wg_log(.debug, message: "startDeactivation: Tunnel: \(name)")
         #if os(iOS)
-        cancelHandshakeMonitoring()
+            cancelHandshakeMonitoring()
         #endif
         (tunnelProvider.connection as? NETunnelProviderSession)?.stopTunnel()
     }
 
     deinit {
         #if os(iOS)
-        cancelHandshakeMonitoring()
+            cancelHandshakeMonitoring()
         #endif
     }
 }
@@ -832,207 +1009,250 @@ extension NETunnelProviderManager {
     private static var cachedConfigKey: UInt8 = 0
 
     var tunnelConfiguration: TunnelConfiguration? {
-        if let cached = objc_getAssociatedObject(self, &NETunnelProviderManager.cachedConfigKey) as? TunnelConfiguration {
+        if let cached = objc_getAssociatedObject(self, &NETunnelProviderManager.cachedConfigKey)
+            as? TunnelConfiguration
+        {
             return cached
         }
-        let config = (protocolConfiguration as? NETunnelProviderProtocol)?.asTunnelConfiguration(called: localizedDescription)
+        let config = (protocolConfiguration as? NETunnelProviderProtocol)?.asTunnelConfiguration(
+            called: localizedDescription)
         if config != nil {
-            objc_setAssociatedObject(self, &NETunnelProviderManager.cachedConfigKey, config, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+            objc_setAssociatedObject(
+                self, &NETunnelProviderManager.cachedConfigKey, config,
+                objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
         return config
     }
 
     func setTunnelConfiguration(_ tunnelConfiguration: TunnelConfiguration) {
-        protocolConfiguration = NETunnelProviderProtocol(tunnelConfiguration: tunnelConfiguration, previouslyFrom: protocolConfiguration)
+        protocolConfiguration = NETunnelProviderProtocol(
+            tunnelConfiguration: tunnelConfiguration, previouslyFrom: protocolConfiguration)
         localizedDescription = tunnelConfiguration.name
-        objc_setAssociatedObject(self, &NETunnelProviderManager.cachedConfigKey, tunnelConfiguration, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        objc_setAssociatedObject(
+            self, &NETunnelProviderManager.cachedConfigKey, tunnelConfiguration,
+            objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)
     }
 
     func isEquivalentTo(_ tunnel: TunnelContainer) -> Bool {
-        return localizedDescription == tunnel.name && tunnelConfiguration == tunnel.tunnelConfiguration
+        return localizedDescription == tunnel.name
+            && tunnelConfiguration == tunnel.tunnelConfiguration
     }
 }
 
 #if os(iOS)
-extension TunnelContainer {
-    func beginAwaitingFreshHandshakeIfNeeded(connectedAt: Date = Date(), completion: @escaping (Result<Date, TunnelHandshakeError>) -> Void) {
-        #if targetEnvironment(simulator)
-        completion(.success(connectedAt))
-        return
-        #endif
+    extension TunnelContainer {
+        func beginAwaitingFreshHandshakeIfNeeded(
+            connectedAt: Date = Date(),
+            completion: @escaping (Result<Date, TunnelHandshakeError>) -> Void
+        ) {
+            #if targetEnvironment(simulator)
+                completion(.success(connectedAt))
+                return
+            #endif
 
-        switch handshakeState {
-        case .confirmed:
-            completion(.success(connectedAt))
-            return
-        case .waiting:
+            switch handshakeState {
+            case .confirmed:
+                completion(.success(connectedAt))
+                return
+            case .waiting:
+                handshakeCompletion = completion
+                return
+            default:
+                break
+            }
+
             handshakeCompletion = completion
-            return
-        default:
-            break
+            handshakeState = .waiting
+            handshakeCutoffDate = connectedAt.addingTimeInterval(-HandshakeConstants.acceptanceSkew)
+            wg_log(
+                .debug,
+                message:
+                    "Handshake wait started: connectedAt=\(connectedAt) cutoff=\(handshakeCutoffDate ?? connectedAt) timeout=\(handshakeTimeoutInterval())"
+            )
+            scheduleHandshakeTimeout()
+            registerForAppLifecycleNotifications()
+            pollHandshakeFreshness()
         }
 
-        handshakeCompletion = completion
-        handshakeState = .waiting
-        handshakeCutoffDate = connectedAt.addingTimeInterval(-HandshakeConstants.acceptanceSkew)
-        scheduleHandshakeTimeout()
-        registerForAppLifecycleNotifications()
-        pollHandshakeFreshness()
-    }
-
-    func cancelHandshakeMonitoring(resetState: Bool = true) {
-        cleanupHandshakeTimers()
-        unregisterAppLifecycleNotifications()
-        handshakeCompletion = nil
-        handshakeCutoffDate = nil
-        pendingTimeoutInterval = nil
-        handshakePollInFlight = false
-        if resetState {
-            handshakeState = .idle
+        func cancelHandshakeMonitoring(resetState: Bool = true) {
+            cleanupHandshakeTimers()
+            unregisterAppLifecycleNotifications()
+            handshakeCompletion = nil
+            handshakeCutoffDate = nil
+            pendingTimeoutInterval = nil
+            handshakePollInFlight = false
+            if resetState {
+                handshakeState = .idle
+            }
         }
-    }
 
-    private func handshakeTimeoutInterval() -> TimeInterval {
-        if let override = tunnelConfiguration?.interface.specialHandshakeTimeout, override > 0 {
-            return TimeInterval(override)
+        private func handshakeTimeoutInterval() -> TimeInterval {
+            if let override = tunnelConfiguration?.interface.specialHandshakeTimeout, override > 0 {
+                return TimeInterval(override)
+            }
+            return HandshakeConstants.defaultTimeout
         }
-        return HandshakeConstants.defaultTimeout
-    }
 
-    private func pollHandshakeFreshness() {
-        guard handshakeState == .waiting else { return }
-        guard !handshakePollInFlight else { return }
-        handshakePollInFlight = true
+        private func pollHandshakeFreshness() {
+            guard handshakeState == .waiting else { return }
+            guard !handshakePollInFlight else { return }
+            handshakePollInFlight = true
 
-        getRuntimeTunnelConfiguration { [weak self] runtimeConfiguration in
-            DispatchQueue.main.async {
+            getRuntimeTunnelConfiguration { [weak self] runtimeConfiguration in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.handshakePollInFlight = false
+                    guard self.handshakeState == .waiting else { return }
+                    guard let runtimeConfiguration = runtimeConfiguration,
+                        let cutoffDate = self.handshakeCutoffDate
+                    else {
+                        wg_log(.debug, message: "Handshake poll: runtime config unavailable")
+                        self.scheduleNextHandshakePoll()
+                        return
+                    }
+
+                    let peerSummaries = runtimeConfiguration.peers.map { peer in
+                        let hs = peer.lastHandshakeTime.map { String(describing: $0) } ?? "nil"
+                        let rx = peer.rxBytes.map { String($0) } ?? "nil"
+                        let tx = peer.txBytes.map { String($0) } ?? "nil"
+                        return "hs=\(hs) rx=\(rx) tx=\(tx)"
+                    }
+                    let isFresh = HandshakeFreshnessEvaluator.containsFreshHandshake(
+                        peers: runtimeConfiguration.peers, cutoffDate: cutoffDate)
+                    wg_log(
+                        .debug,
+                        message:
+                            "Handshake poll: cutoff=\(cutoffDate) peers=[\(peerSummaries.joined(separator: "; "))] fresh=\(isFresh)"
+                    )
+
+                    if isFresh {
+                        self.finishHandshakeWaiting(result: .success(Date()))
+                    } else {
+                        self.scheduleNextHandshakePoll()
+                    }
+                }
+            }
+        }
+
+        private func scheduleNextHandshakePoll() {
+            guard handshakeState == .waiting else { return }
+            handshakePollTimer?.invalidate()
+            handshakePollTimer = Timer(
+                timeInterval: HandshakeConstants.pollInterval, repeats: false
+            ) { [weak self] _ in
+                self?.pollHandshakeFreshness()
+            }
+            if let timer = handshakePollTimer {
+                RunLoop.main.add(timer, forMode: .common)
+            }
+        }
+
+        private func scheduleHandshakeTimeout(after interval: TimeInterval? = nil) {
+            let timeout = interval ?? handshakeTimeoutInterval()
+            handshakeTimeoutTimer?.invalidate()
+            pendingTimeoutInterval = nil
+            handshakeTimeoutDeadline = Date().addingTimeInterval(timeout)
+            handshakeTimeoutTimer = Timer(timeInterval: timeout, repeats: false) { [weak self] _ in
                 guard let self = self else { return }
-                self.handshakePollInFlight = false
-                guard self.handshakeState == .waiting else { return }
-                guard let runtimeConfiguration = runtimeConfiguration,
-                      let cutoffDate = self.handshakeCutoffDate else {
-                    self.scheduleNextHandshakePoll()
+                self.finishHandshakeWaiting(result: .failure(.timedOut(timeout)))
+            }
+            if let timer = handshakeTimeoutTimer {
+                RunLoop.main.add(timer, forMode: .common)
+            }
+        }
+
+        private func finishHandshakeWaiting(result: Result<Date, TunnelHandshakeError>) {
+            cleanupHandshakeTimers()
+            unregisterAppLifecycleNotifications()
+            handshakeCutoffDate = nil
+            switch result {
+            case .success:
+                handshakeState = .confirmed
+                status = .active
+                wg_log(.debug, message: "Handshake wait succeeded")
+            case .failure(let error):
+                handshakeState = .failed
+                wg_log(.debug, message: "Handshake wait failed: \(error)")
+            }
+            let completion = handshakeCompletion
+            handshakeCompletion = nil
+            completion?(result)
+        }
+
+        private func cleanupHandshakeTimers() {
+            handshakePollTimer?.invalidate()
+            handshakeTimeoutTimer?.invalidate()
+            handshakePollTimer = nil
+            handshakeTimeoutTimer = nil
+            handshakeTimeoutDeadline = nil
+            pendingTimeoutInterval = nil
+            handshakePollInFlight = false
+        }
+
+        private func registerForAppLifecycleNotifications() {
+            guard appDidEnterBackgroundObserver == nil, appWillEnterForegroundObserver == nil else {
+                return
+            }
+            let center = NotificationCenter.default
+            appDidEnterBackgroundObserver = center.addObserver(
+                forName: UIApplication.didEnterBackgroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.applicationDidEnterBackground()
+            }
+            appWillEnterForegroundObserver = center.addObserver(
+                forName: UIApplication.willEnterForegroundNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                self?.applicationWillEnterForeground()
+            }
+        }
+
+        private func unregisterAppLifecycleNotifications() {
+            let center = NotificationCenter.default
+            if let observer = appDidEnterBackgroundObserver {
+                center.removeObserver(observer)
+            }
+            if let observer = appWillEnterForegroundObserver {
+                center.removeObserver(observer)
+            }
+            appDidEnterBackgroundObserver = nil
+            appWillEnterForegroundObserver = nil
+        }
+
+        private func applicationDidEnterBackground() {
+            guard handshakeState == .waiting else { return }
+            if let deadline = handshakeTimeoutDeadline {
+                pendingTimeoutInterval = max(0, deadline.timeIntervalSinceNow)
+            }
+            handshakePollTimer?.invalidate()
+            handshakePollTimer = nil
+            handshakeTimeoutTimer?.invalidate()
+            handshakeTimeoutTimer = nil
+        }
+
+        private func applicationWillEnterForeground() {
+            guard handshakeState == .waiting else { return }
+            if let remaining = pendingTimeoutInterval {
+                pendingTimeoutInterval = nil
+                if remaining <= 0 {
+                    finishHandshakeWaiting(result: .failure(.timedOut(handshakeTimeoutInterval())))
                     return
                 }
-
-                if HandshakeFreshnessEvaluator.containsFreshHandshake(peers: runtimeConfiguration.peers, cutoffDate: cutoffDate) {
-                    self.finishHandshakeWaiting(result: .success(Date()))
-                } else {
-                    self.scheduleNextHandshakePoll()
+                scheduleHandshakeTimeout(after: remaining)
+            } else if let deadline = handshakeTimeoutDeadline {
+                let remaining = max(0, deadline.timeIntervalSinceNow)
+                if remaining <= 0 {
+                    finishHandshakeWaiting(result: .failure(.timedOut(handshakeTimeoutInterval())))
+                    return
                 }
+                scheduleHandshakeTimeout(after: remaining)
+            } else {
+                scheduleHandshakeTimeout()
             }
+            pollHandshakeFreshness()
         }
     }
-
-    private func scheduleNextHandshakePoll() {
-        guard handshakeState == .waiting else { return }
-        handshakePollTimer?.invalidate()
-        handshakePollTimer = Timer(timeInterval: HandshakeConstants.pollInterval, repeats: false) { [weak self] _ in
-            self?.pollHandshakeFreshness()
-        }
-        if let timer = handshakePollTimer {
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    private func scheduleHandshakeTimeout(after interval: TimeInterval? = nil) {
-        let timeout = interval ?? handshakeTimeoutInterval()
-        handshakeTimeoutTimer?.invalidate()
-        pendingTimeoutInterval = nil
-        handshakeTimeoutDeadline = Date().addingTimeInterval(timeout)
-        handshakeTimeoutTimer = Timer(timeInterval: timeout, repeats: false) { [weak self] _ in
-            guard let self = self else { return }
-            self.finishHandshakeWaiting(result: .failure(.timedOut(timeout)))
-        }
-        if let timer = handshakeTimeoutTimer {
-            RunLoop.main.add(timer, forMode: .common)
-        }
-    }
-
-    private func finishHandshakeWaiting(result: Result<Date, TunnelHandshakeError>) {
-        cleanupHandshakeTimers()
-        unregisterAppLifecycleNotifications()
-        handshakeCutoffDate = nil
-        switch result {
-        case .success:
-            handshakeState = .confirmed
-            status = .active
-        case .failure:
-            handshakeState = .failed
-        }
-        let completion = handshakeCompletion
-        handshakeCompletion = nil
-        completion?(result)
-    }
-
-    private func cleanupHandshakeTimers() {
-        handshakePollTimer?.invalidate()
-        handshakeTimeoutTimer?.invalidate()
-        handshakePollTimer = nil
-        handshakeTimeoutTimer = nil
-        handshakeTimeoutDeadline = nil
-        pendingTimeoutInterval = nil
-        handshakePollInFlight = false
-    }
-
-    private func registerForAppLifecycleNotifications() {
-        guard appDidEnterBackgroundObserver == nil, appWillEnterForegroundObserver == nil else { return }
-        let center = NotificationCenter.default
-        appDidEnterBackgroundObserver = center.addObserver(forName: UIApplication.didEnterBackgroundNotification,
-                                                          object: nil,
-                                                          queue: .main) { [weak self] _ in
-            self?.applicationDidEnterBackground()
-        }
-        appWillEnterForegroundObserver = center.addObserver(forName: UIApplication.willEnterForegroundNotification,
-                                                            object: nil,
-                                                            queue: .main) { [weak self] _ in
-            self?.applicationWillEnterForeground()
-        }
-    }
-
-    private func unregisterAppLifecycleNotifications() {
-        let center = NotificationCenter.default
-        if let observer = appDidEnterBackgroundObserver {
-            center.removeObserver(observer)
-        }
-        if let observer = appWillEnterForegroundObserver {
-            center.removeObserver(observer)
-        }
-        appDidEnterBackgroundObserver = nil
-        appWillEnterForegroundObserver = nil
-    }
-
-    private func applicationDidEnterBackground() {
-        guard handshakeState == .waiting else { return }
-        if let deadline = handshakeTimeoutDeadline {
-            pendingTimeoutInterval = max(0, deadline.timeIntervalSinceNow)
-        }
-        handshakePollTimer?.invalidate()
-        handshakePollTimer = nil
-        handshakeTimeoutTimer?.invalidate()
-        handshakeTimeoutTimer = nil
-    }
-
-    private func applicationWillEnterForeground() {
-        guard handshakeState == .waiting else { return }
-        if let remaining = pendingTimeoutInterval {
-            pendingTimeoutInterval = nil
-            if remaining <= 0 {
-                finishHandshakeWaiting(result: .failure(.timedOut(handshakeTimeoutInterval())))
-                return
-            }
-            scheduleHandshakeTimeout(after: remaining)
-        } else if let deadline = handshakeTimeoutDeadline {
-            let remaining = max(0, deadline.timeIntervalSinceNow)
-            if remaining <= 0 {
-                finishHandshakeWaiting(result: .failure(.timedOut(handshakeTimeoutInterval())))
-                return
-            }
-            scheduleHandshakeTimeout(after: remaining)
-        } else {
-            scheduleHandshakeTimeout()
-        }
-        pollHandshakeFreshness()
-    }
-}
 #endif

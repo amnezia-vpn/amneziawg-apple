@@ -164,6 +164,7 @@ public class WireGuardAdapter {
     public func getRuntimeConfiguration(completionHandler: @escaping (String?) -> Void) {
         workQueue.async {
             guard case .started(let handle, _) = self.state else {
+                self.logHandler(.verbose, "getRuntimeConfiguration: adapter not started (state=\(self.state))")
                 completionHandler(nil)
                 return
             }
@@ -195,8 +196,12 @@ public class WireGuardAdapter {
             networkMonitor.start(queue: self.workQueue)
 
             do {
+                self.logHandler(.verbose, "Adapter start requested")
                 let settingsGenerator = try self.makeSettingsGenerator(with: tunnelConfiguration)
-                try self.setNetworkSettings(settingsGenerator.generateNetworkSettings())
+                let networkSettings = settingsGenerator.generateNetworkSettings()
+                self.logResolvedEndpoints(settingsGenerator.resolvedEndpoints, context: "start")
+                self.logNetworkSettingsSummary(networkSettings, context: "start")
+                try self.setNetworkSettings(networkSettings)
 
                 let (wgConfig, resolutionResults) = settingsGenerator.uapiConfiguration()
                 self.logEndpointResolutionResults(resolutionResults)
@@ -220,6 +225,7 @@ public class WireGuardAdapter {
     /// - Parameter completionHandler: completion handler.
     public func stop(completionHandler: @escaping (WireGuardAdapterError?) -> Void) {
         workQueue.async {
+            self.logHandler(.verbose, "Adapter stop requested (state=\(self.state))")
             switch self.state {
             case .started(let handle, _):
                 wgTurnOff(handle)
@@ -262,7 +268,10 @@ public class WireGuardAdapter {
 
             do {
                 let settingsGenerator = try self.makeSettingsGenerator(with: tunnelConfiguration)
-                try self.setNetworkSettings(settingsGenerator.generateNetworkSettings())
+                let networkSettings = settingsGenerator.generateNetworkSettings()
+                self.logResolvedEndpoints(settingsGenerator.resolvedEndpoints, context: "update")
+                self.logNetworkSettingsSummary(networkSettings, context: "update")
+                try self.setNetworkSettings(networkSettings)
 
                 switch self.state {
                 case .started(let handle, _):
@@ -319,6 +328,7 @@ public class WireGuardAdapter {
     /// - Throws: an error of type `WireGuardAdapterError`.
     /// - Returns: `PacketTunnelSettingsGenerator`.
     private func setNetworkSettings(_ networkSettings: NEPacketTunnelNetworkSettings) throws {
+        self.logHandler(.verbose, "setNetworkSettings: applying")
         var systemError: Error?
         let condition = NSCondition()
 
@@ -382,10 +392,12 @@ public class WireGuardAdapter {
             throw WireGuardAdapterError.cannotLocateTunnelFileDescriptor
         }
 
+        self.logHandler(.verbose, "Starting WireGuard backend (config bytes: \(wgConfig.utf8.count), fd: \(tunnelFileDescriptor))")
         let handle = wgTurnOn(wgConfig, tunnelFileDescriptor)
         if handle < 0 {
             throw WireGuardAdapterError.startWireGuardBackend(handle)
         }
+        self.logHandler(.verbose, "WireGuard backend started with handle \(handle)")
         #if os(iOS)
         wgDisableSomeRoamingForBrokenMobileSemantics(handle)
         #endif
@@ -420,10 +432,27 @@ public class WireGuardAdapter {
         }
     }
 
+    private func logNetworkSettingsSummary(_ networkSettings: NEPacketTunnelNetworkSettings, context: String) {
+        let ipv4Included = networkSettings.ipv4Settings?.includedRoutes?.count ?? 0
+        let ipv4Excluded = networkSettings.ipv4Settings?.excludedRoutes?.count ?? 0
+        let ipv6Included = networkSettings.ipv6Settings?.includedRoutes?.count ?? 0
+        let ipv6Excluded = networkSettings.ipv6Settings?.excludedRoutes?.count ?? 0
+        let mtu = networkSettings.mtu?.stringValue ?? "nil"
+        let dnsServers = networkSettings.dnsSettings?.servers.joined(separator: ", ") ?? "nil"
+        self.logHandler(.verbose, "Network settings (\(context)): remote=\(networkSettings.tunnelRemoteAddress) mtu=\(mtu) dns=\(dnsServers) ipv4 inc/exc=\(ipv4Included)/\(ipv4Excluded) ipv6 inc/exc=\(ipv6Included)/\(ipv6Excluded)")
+    }
+
+    private func logResolvedEndpoints(_ endpoints: [Endpoint?], context: String) {
+        let endpointStrings = endpoints.map { $0?.stringRepresentation ?? "nil" }
+        self.logHandler(.verbose, "Resolved endpoints (\(context)): \(endpointStrings)")
+    }
+
     /// Helper method used by network path monitor.
     /// - Parameter path: new network path
     private func didReceivePathUpdate(path: Network.NWPath) {
         self.logHandler(.verbose, "Network change detected with \(path.status) route and interface order \(path.availableInterfaces)")
+        let lastUpdate = self.lastNetworkSettingsUpdateAt.map { String(describing: $0) } ?? "nil"
+        self.logHandler(.verbose, "Path update state: state=\(self.state) everHadHandshake=\(self.everHadHandshake) lastNetworkSettingsUpdateAt=\(lastUpdate)")
 
         #if os(macOS)
         if case .started(let handle, _) = self.state {
@@ -462,7 +491,9 @@ public class WireGuardAdapter {
             self.logHandler(.verbose, "Connectivity online, resuming backend.")
 
             do {
-                try self.setNetworkSettings(settingsGenerator.generateNetworkSettings())
+                let networkSettings = settingsGenerator.generateNetworkSettings()
+                self.logNetworkSettingsSummary(networkSettings, context: "resume")
+                try self.setNetworkSettings(networkSettings)
 
                 let (wgConfig, resolutionResults) = settingsGenerator.uapiConfiguration()
                 self.logEndpointResolutionResults(resolutionResults)
@@ -500,6 +531,11 @@ public class WireGuardAdapter {
             return false
         }
 
+        // If we have never completed a handshake, treat `.unsatisfied` as transient during bootstrap.
+        if !self.everHadHandshake {
+            return false
+        }
+
         // Outside the grace period, treat `.unsatisfied` as a real offline transition.
         // (We still keep `everHadHandshake` for future heuristics and for logging/debugging.)
         return true
@@ -522,6 +558,7 @@ public class WireGuardAdapter {
             let valueString = String(line.dropFirst("last_handshake_time_sec=".count))
             if let value = Int64(valueString), value > 0 {
                 self.everHadHandshake = true
+                self.logHandler(.verbose, "Observed first handshake at last_handshake_time_sec=\(value)")
                 break
             }
         }
