@@ -27,10 +27,6 @@ public struct InterfaceConfiguration {
     public var specialJunk3: String?
     public var specialJunk4: String?
     public var specialJunk5: String?
-    public var controlledJunk1: String?
-    public var controlledJunk2: String?
-    public var controlledJunk3: String?
-    public var specialHandshakeTimeout: Int?
 
     public init(privateKey: PrivateKey) {
         self.privateKey = privateKey
@@ -63,10 +59,6 @@ extension InterfaceConfiguration: Equatable {
             lhs.specialJunk2 == rhs.specialJunk2 &&
             lhs.specialJunk3 == rhs.specialJunk3 &&
             lhs.specialJunk4 == rhs.specialJunk4 &&
-            lhs.specialJunk5 == rhs.specialJunk5 &&
-            lhs.controlledJunk1 == rhs.controlledJunk1 &&
-            lhs.controlledJunk2 == rhs.controlledJunk2 &&
-            lhs.controlledJunk3 == rhs.controlledJunk3 &&
-            lhs.specialHandshakeTimeout == rhs.specialHandshakeTimeout
+            lhs.specialJunk5 == rhs.specialJunk5
     }
 }

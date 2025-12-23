@@ -96,18 +96,6 @@ class PacketTunnelSettingsGenerator {
         if let specialJunk5 = tunnelConfiguration.interface.specialJunk5 {
             wgSettings.append("i5=\(specialJunk5)\n")
         }
-        if let controlledJunk1 = tunnelConfiguration.interface.controlledJunk1 {
-            wgSettings.append("j1=\(controlledJunk1)\n")
-        }
-        if let controlledJunk2 = tunnelConfiguration.interface.controlledJunk2 {
-            wgSettings.append("j2=\(controlledJunk2)\n")
-        }
-        if let controlledJunk3 = tunnelConfiguration.interface.controlledJunk3 {
-            wgSettings.append("j3=\(controlledJunk3)\n")
-        }
-        if let specialHandshakeTimeout = tunnelConfiguration.interface.specialHandshakeTimeout {
-            wgSettings.append("itime=\(specialHandshakeTimeout)\n")
-        }
         if !tunnelConfiguration.peers.isEmpty {
             wgSettings.append("replace_peers=true\n")
         }
