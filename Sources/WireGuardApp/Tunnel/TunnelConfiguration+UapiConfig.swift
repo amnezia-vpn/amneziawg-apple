@@ -41,6 +41,22 @@ extension TunnelConfiguration {
                 }
             }
 
+            let interfaceSectionKeys: Set<String> = ["private_key", "listen_port", "fwmark"]
+            let peerSectionKeys: Set<String> = ["public_key", "preshared_key", "allowed_ip", "endpoint", "persistent_keepalive_interval", "last_handshake_time_sec", "last_handshake_time_nsec", "rx_bytes", "tx_bytes", "protocol_version"]
+
+            if parserState == .inInterfaceSection {
+                // Ignore unrecognized keys from runtime config (forward compatibility).
+                if !interfaceSectionKeys.contains(key) {
+                    continue
+                }
+            }
+            if parserState == .inPeerSection {
+                // Ignore unrecognized keys from runtime config (forward compatibility).
+                if !peerSectionKeys.contains(key) {
+                    continue
+                }
+            }
+
             if let presentValue = attributes[key] {
                 if key == "allowed_ip" {
                     attributes[key] = presentValue + "," + value
@@ -49,20 +65,6 @@ extension TunnelConfiguration {
                 }
             } else {
                 attributes[key] = value
-            }
-
-            let interfaceSectionKeys: Set<String> = ["private_key", "listen_port", "fwmark"]
-            let peerSectionKeys: Set<String> = ["public_key", "preshared_key", "allowed_ip", "endpoint", "persistent_keepalive_interval", "last_handshake_time_sec", "last_handshake_time_nsec", "rx_bytes", "tx_bytes", "protocol_version"]
-
-            if parserState == .inInterfaceSection {
-                guard interfaceSectionKeys.contains(key) else {
-                    throw ParseError.interfaceHasUnrecognizedKey(key)
-                }
-            }
-            if parserState == .inPeerSection {
-                guard peerSectionKeys.contains(key) else {
-                    throw ParseError.peerHasUnrecognizedKey(key)
-                }
             }
         }
 

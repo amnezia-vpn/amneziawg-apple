@@ -13,11 +13,62 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }()
 
+
+    private func logAppGroupInfo() {
+        let appGroupId = FileManager.appGroupId ?? "nil"
+        let logPath = FileManager.logFileURL?.path ?? "nil"
+        let errorPath = FileManager.networkExtensionLastErrorFileURL?.path ?? "nil"
+        wg_log(.info, message: "App group id: \(appGroupId)")
+        wg_log(.info, message: "Log file path: \(logPath)")
+        wg_log(.info, message: "Last error file path: \(errorPath)")
+    }
+
+    private func logTunnelConfigurationSummary(_ tunnelConfiguration: TunnelConfiguration) {
+        let interface = tunnelConfiguration.interface
+        let addressStrings = interface.addresses.map { $0.stringRepresentation }
+        let dnsStrings = interface.dns.map { $0.stringRepresentation }
+        let mtuString = interface.mtu.map { String($0) } ?? "auto"
+        let peerSummaries = tunnelConfiguration.peers.enumerated().map { index, peer in
+            let endpoint = peer.endpoint?.stringRepresentation ?? "nil"
+            let keepalive = peer.persistentKeepAlive.map { String($0) } ?? "0"
+            return "peer[\(index)]: endpoint=\(endpoint) allowedIPs=\(peer.allowedIPs.count) excludeIPs=\(peer.excludeIPs.count) keepalive=\(keepalive)"
+        }
+        let peersSummary = peerSummaries.isEmpty ? "none" : peerSummaries.joined(separator: "; ")
+        wg_log(.info, message: "Config summary: addresses=\(addressStrings) dns=\(dnsStrings) mtu=\(mtuString) peers=\(peersSummary)")
+    }
+
+    private func logRuntimeConfigSummary(_ settings: String) {
+        var peerCount = 0
+        var handshakeValues = [String]()
+        var rxValues = [String]()
+        var txValues = [String]()
+        let handshakePrefix = "last_handshake_time_sec="
+        let rxPrefix = "rx_bytes="
+        let txPrefix = "tx_bytes="
+        for line in settings.split(separator: "\n") {
+            if line.hasPrefix("public_key=") {
+                peerCount += 1
+            } else if line.hasPrefix(handshakePrefix) {
+                handshakeValues.append(String(line.dropFirst(handshakePrefix.count)))
+            } else if line.hasPrefix(rxPrefix) {
+                rxValues.append(String(line.dropFirst(rxPrefix.count)))
+            } else if line.hasPrefix(txPrefix) {
+                txValues.append(String(line.dropFirst(txPrefix.count)))
+            }
+        }
+        wg_log(.debug, message: "Runtime config summary: peers=\(peerCount) last_handshake_time_sec=\(handshakeValues) rx_bytes=\(rxValues) tx_bytes=\(txValues)")
+    }
+
+
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
         let activationAttemptId = options?["activationAttemptId"] as? String
         let errorNotifier = ErrorNotifier(activationAttemptId: activationAttemptId)
 
         Logger.configureGlobal(tagged: "NET", withFilePath: FileManager.logFileURL?.path)
+
+        let optionKeys = options?.keys.sorted().joined(separator: ", ") ?? "none"
+        wg_log(.info, message: "Start options keys: \(optionKeys)")
+        logAppGroupInfo()
 
         wg_log(.info, message: "Starting tunnel from the " + (activationAttemptId == nil ? "OS directly, rather than the app" : "app"))
 
@@ -27,6 +78,8 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             completionHandler(PacketTunnelProviderError.savedProtocolConfigurationIsInvalid)
             return
         }
+
+        logTunnelConfigurationSummary(tunnelConfiguration)
 
         // Start the tunnel
         adapter.start(tunnelConfiguration: tunnelConfiguration) { adapterError in
@@ -69,8 +122,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
-    override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
-        wg_log(.info, staticMessage: "Stopping tunnel")
+    override func
+    stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
+        wg_log(.info, message: "Stopping tunnel, reason=\(reason.rawValue) (\(reason))")
 
         adapter.stop { error in
             ErrorNotifier.removeLastErrorFile()
@@ -92,15 +146,21 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)? = nil) {
         guard let completionHandler = completionHandler else { return }
 
+        wg_log(.debug, message: "handleAppMessage: received \(messageData.count) bytes")
         if messageData.count == 1 && messageData[0] == 0 {
-            adapter.getRuntimeConfiguration { settings in
+            wg_log(.debug, message: "handleAppMessage: runtime configuration requested")
+            adapter.getRuntimeConfiguration { [weak self] settings in
                 var data: Data?
                 if let settings = settings {
+                    self?.logRuntimeConfigSummary(settings)
                     data = settings.data(using: .utf8)!
+                } else {
+                    wg_log(.debug, message: "handleAppMessage: runtime configuration unavailable")
                 }
                 completionHandler(data)
             }
         } else {
+            wg_log(.debug, message: "handleAppMessage: unsupported message payload")
             completionHandler(nil)
         }
     }
