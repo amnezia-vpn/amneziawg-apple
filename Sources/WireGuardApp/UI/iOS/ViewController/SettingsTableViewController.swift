@@ -150,9 +150,9 @@ extension SettingsTableViewController {
                 }
                 cell.value = appVersion
             }
-//            else if field == .goBackendVersion {
-//                cell.value = WIREGUARD_GO_VERSION
-//            }
+            else if field == .goBackendVersion {
+                cell.value = WIREGUARD_GO_VERSION
+            }
             return cell
         } else if field == .exportZipArchive {
             let cell: ButtonCell = tableView.dequeueReusableCell(for: indexPath)
