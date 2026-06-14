@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
+// Copyright © 2024 Amnezia VPN. All Rights Reserved.
 
 import Cocoa
 
@@ -40,7 +41,11 @@ class ConfTextStorage: NSTextStorage {
             return [.font: boldFont]
         case HighlightPublicKey.rawValue, HighlightPrivateKey.rawValue, HighlightPresharedKey.rawValue,
              HighlightIP.rawValue, HighlightCidr.rawValue, HighlightHost.rawValue, HighlightPort.rawValue,
-             HighlightMTU.rawValue, HighlightKeepalive.rawValue, HighlightDelimiter.rawValue:
+             HighlightMTU.rawValue, HighlightKeepalive.rawValue,
+             HighlightJc.rawValue, HighlightJmin.rawValue, HighlightJmax.rawValue,
+             HighlightS1.rawValue, HighlightS2.rawValue,
+             HighlightH1.rawValue, HighlightH2.rawValue, HighlightH3.rawValue, HighlightH4.rawValue,
+             HighlightDelimiter.rawValue:
             return [.font: defaultFont]
         case HighlightComment.rawValue:
             return [.font: italicFont]

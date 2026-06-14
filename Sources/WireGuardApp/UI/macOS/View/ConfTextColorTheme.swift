@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 // Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
+// Copyright © 2024 Amnezia VPN. All Rights Reserved.
 
 import Cocoa
 
@@ -22,6 +23,15 @@ struct ConfTextAquaColorTheme: ConfTextColorTheme {
         HighlightPort.rawValue: NSColor(hex: "#815F03"), // Attributes in Xcode
         HighlightMTU.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
         HighlightKeepalive.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightJc.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightJmin.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightJmax.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightS1.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightS2.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightH1.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightH2.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightH3.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
+        HighlightH4.rawValue: NSColor(hex: "#1C00CF"), // Numbers in Xcode
         HighlightComment.rawValue: NSColor(hex: "#536579"), // Comments in Xcode
         HighlightError.rawValue: NSColor(hex: "#C41A16") // Strings in Xcode
     ]
@@ -41,6 +51,15 @@ struct ConfTextDarkAquaColorTheme: ConfTextColorTheme {
         HighlightPort.rawValue: NSColor(hex: "#75B492"), // Attributes in Xcode
         HighlightMTU.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
         HighlightKeepalive.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightJc.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightJmin.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightJmax.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightS1.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightS2.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightH1.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightH2.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightH3.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
+        HighlightH4.rawValue: NSColor(hex: "#9686F5"), // Numbers in Xcode
         HighlightComment.rawValue: NSColor(hex: "#6C7986"), // Comments in Xcode
         HighlightError.rawValue: NSColor(hex: "#FF4C4C") // Strings in Xcode
     ]

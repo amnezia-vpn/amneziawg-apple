@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 /*
  * Copyright (C) 2015-2020 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2024 Amnezia VPN. All Rights Reserved.
  */
 
 #include <stdbool.h>
@@ -221,6 +222,21 @@ static bool is_valid_persistentkeepalive(string_span_t s)
 	return is_valid_uint(s, false, 0, 65535);
 }
 
+static bool is_valid_jc(string_span_t s)
+{
+	return is_valid_uint(s, false, 0, 65535);
+}
+
+static bool is_valid_junk_size(string_span_t s)
+{
+	return is_valid_uint(s, false, 0, 65535);
+}
+
+static bool is_valid_magic_header(string_span_t s)
+{
+	return is_valid_uint(s, false, 0, 4294967295);
+}
+
 #ifndef MOBILE_WGQUICK_SUBSET
 
 static bool is_valid_fwmark(string_span_t s)
@@ -344,6 +360,15 @@ enum field {
 	Address,
 	DNS,
 	MTU,
+	Jc,
+	Jmin,
+	Jmax,
+	S1,
+	S2,
+	H1,
+	H2,
+	H3,
+	H4,
 #ifndef MOBILE_WGQUICK_SUBSET
 	FwMark,
 	Table,
@@ -383,6 +408,15 @@ static enum field get_field(string_span_t s)
 	check_enum(AllowedIPs);
 	check_enum(Endpoint);
 	check_enum(PersistentKeepalive);
+	check_enum(Jc);
+	check_enum(Jmin);
+	check_enum(Jmax);
+	check_enum(S1);
+	check_enum(S2);
+	check_enum(H1);
+	check_enum(H2);
+	check_enum(H3);
+	check_enum(H4);
 #ifndef MOBILE_WGQUICK_SUBSET
 	check_enum(FwMark);
 	check_enum(Table);
@@ -521,6 +555,33 @@ static void highlight_value(struct highlight_span_array *ret, const string_span_
 		break;
 	case MTU:
 		append_highlight_span(ret, parent.s, s, is_valid_mtu(s) ? HighlightMTU : HighlightError);
+		break;
+	case Jc:
+		append_highlight_span(ret, parent.s, s, is_valid_jc(s) ? HighlightJc : HighlightError);
+		break;
+	case Jmin:
+		append_highlight_span(ret, parent.s, s, is_valid_junk_size(s) ? HighlightJmin : HighlightError);
+		break;
+	case Jmax:
+		append_highlight_span(ret, parent.s, s, is_valid_junk_size(s) ? HighlightJmax : HighlightError);
+		break;
+	case S1:
+		append_highlight_span(ret, parent.s, s, is_valid_junk_size(s) ? HighlightS1 : HighlightError);
+		break;
+	case S2:
+		append_highlight_span(ret, parent.s, s, is_valid_junk_size(s) ? HighlightS2 : HighlightError);
+		break;
+	case H1:
+		append_highlight_span(ret, parent.s, s, is_valid_magic_header(s) ? HighlightH1 : HighlightError);
+		break;
+	case H2:
+		append_highlight_span(ret, parent.s, s, is_valid_magic_header(s) ? HighlightH2 : HighlightError);
+		break;
+	case H3:
+		append_highlight_span(ret, parent.s, s, is_valid_magic_header(s) ? HighlightH3 : HighlightError);
+		break;
+	case H4:
+		append_highlight_span(ret, parent.s, s, is_valid_magic_header(s) ? HighlightH4 : HighlightError);
 		break;
 #ifndef MOBILE_WGQUICK_SUBSET
 	case SaveConfig:
