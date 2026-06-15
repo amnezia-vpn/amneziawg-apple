@@ -21,6 +21,7 @@ extension TunnelConfiguration {
         case interfaceHasInvalidAddress(String)
         case interfaceHasInvalidDNS(String)
         case interfaceHasInvalidMTU(String)
+        case interfaceHasInvalidPreSharedKey(String)
         case interfaceHasUnrecognizedKey(String)
         case interfaceHasInvalidCustomParam(String)
         case peerHasNoPublicKey
@@ -186,6 +187,9 @@ extension TunnelConfiguration {
         if let transportPacketMagicHeader = interface.transportPacketMagicHeader {
             output.append("H4 = \(transportPacketMagicHeader)\n")
         }
+        if let obfsPSK = interface.obfsPSK {
+            output.append("ObfsPSK = \(obfsPSK.base64Key)\n")
+        }
         if let specialJunk1 = interface.specialJunk1 {
             output.append("I1 = \(specialJunk1)\n")
         }
@@ -332,6 +336,12 @@ extension TunnelConfiguration {
         }
         if let transportPacketMagicHeaderString = attributes["h4"] {
             interface.transportPacketMagicHeader = transportPacketMagicHeaderString
+        }
+        if let obfsPSKString = attributes["obfspsk"] {
+            guard let obfsPSK = PreSharedKey(base64Key: obfsPSKString) else {
+                throw ParseError.interfaceHasInvalidPreSharedKey(obfsPSKString)
+            }
+            interface.obfsPSK = obfsPSK
         }
         if let specialJunk1String = attributes["i1"] {
             interface.specialJunk1 = specialJunk1String

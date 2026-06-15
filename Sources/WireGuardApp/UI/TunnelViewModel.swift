@@ -24,6 +24,7 @@ class TunnelViewModel {
         case responsePacketMagicHeader
         case underloadPacketMagicHeader
         case transportPacketMagicHeader
+        case obfsPSK
         case cookieReplyPacketJunkSize
         case transportPacketJunkSize
         case specialJunk1
@@ -53,6 +54,7 @@ class TunnelViewModel {
             case .responsePacketMagicHeader: return tr("H2")
             case .underloadPacketMagicHeader: return tr("H3")
             case .transportPacketMagicHeader: return tr("H4")
+            case .obfsPSK: return tr("ObfsPSK")
             case .cookieReplyPacketJunkSize: return tr("S3")
             case .transportPacketJunkSize: return tr("S4")
             case .specialJunk1: return tr("I1")
@@ -216,6 +218,10 @@ class TunnelViewModel {
                 scratchpad[.transportPacketMagicHeader] = String(transportPacketMagicHeader)
             }
 
+            if let obfsPSK = config.obfsPSK {
+                scratchpad[.obfsPSK] = obfsPSK.base64Key
+            }
+
             if let cookieReplyPacketJunkSize = config.cookieReplyPacketJunkSize {
                 scratchpad[.cookieReplyPacketJunkSize] = String(cookieReplyPacketJunkSize)
             }
@@ -367,6 +373,15 @@ class TunnelViewModel {
 
             if let transportPacketMagicHeaderString = scratchpad[.transportPacketMagicHeader], !transportPacketMagicHeaderString.isEmpty {
                 config.transportPacketMagicHeader = transportPacketMagicHeaderString
+            }
+
+            if let obfsPSKString = scratchpad[.obfsPSK], !obfsPSKString.isEmpty {
+                if let obfsPSK = PreSharedKey(base64Key: obfsPSKString) {
+                    config.obfsPSK = obfsPSK
+                } else {
+                    fieldsWithError.insert(.obfsPSK)
+                    errorMessages.append(tr("alertInvalidPeerMessagePreSharedKeyInvalid"))
+                }
             }
 
             if let cookieReplyPacketJunkSizeString = scratchpad[.cookieReplyPacketJunkSize], !cookieReplyPacketJunkSizeString.isEmpty {

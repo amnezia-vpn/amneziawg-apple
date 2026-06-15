@@ -41,7 +41,7 @@ extension TunnelConfiguration {
                 }
             }
 
-            let interfaceSectionKeys: Set<String> = ["private_key", "listen_port", "fwmark"]
+            let interfaceSectionKeys: Set<String> = ["private_key", "listen_port", "fwmark", "obfs_psk"]
             let peerSectionKeys: Set<String> = ["public_key", "preshared_key", "allowed_ip", "endpoint", "persistent_keepalive_interval", "last_handshake_time_sec", "last_handshake_time_nsec", "rx_bytes", "tx_bytes", "protocol_version"]
 
             if parserState == .inInterfaceSection {
@@ -87,6 +87,7 @@ extension TunnelConfiguration {
         interfaceConfiguration?.responsePacketMagicHeader = base?.interface.responsePacketMagicHeader
         interfaceConfiguration?.underloadPacketMagicHeader = base?.interface.underloadPacketMagicHeader
         interfaceConfiguration?.transportPacketMagicHeader = base?.interface.transportPacketMagicHeader
+        interfaceConfiguration?.obfsPSK = base?.interface.obfsPSK ?? interfaceConfiguration?.obfsPSK
         interfaceConfiguration?.cookieReplyPacketJunkSize = base?.interface.cookieReplyPacketJunkSize
         interfaceConfiguration?.transportPacketJunkSize = base?.interface.transportPacketJunkSize
         interfaceConfiguration?.specialJunk1 = base?.interface.specialJunk1
@@ -117,6 +118,12 @@ extension TunnelConfiguration {
             if listenPort != 0 {
                 interface.listenPort = listenPort
             }
+        }
+        if let obfsPSKString = attributes["obfs_psk"] {
+            guard let obfsPSK = PreSharedKey(hexKey: obfsPSKString) else {
+                throw ParseError.interfaceHasInvalidPreSharedKey(obfsPSKString)
+            }
+            interface.obfsPSK = obfsPSK
         }
         return interface
     }

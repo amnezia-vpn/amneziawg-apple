@@ -18,6 +18,7 @@ public struct InterfaceConfiguration {
     public var responsePacketMagicHeader: String?
     public var underloadPacketMagicHeader: String?
     public var transportPacketMagicHeader: String?
+    public var obfsPSK: PreSharedKey?
     public var listenPort: UInt16?
     public var mtu: UInt16?
     public var dns = [DNSServer]()
@@ -55,6 +56,7 @@ extension InterfaceConfiguration: Equatable {
             lhs.responsePacketMagicHeader == rhs.responsePacketMagicHeader &&
             lhs.underloadPacketMagicHeader == rhs.underloadPacketMagicHeader &&
             lhs.transportPacketMagicHeader == rhs.transportPacketMagicHeader &&
+            lhs.obfsPSK == rhs.obfsPSK &&
             lhs.specialJunk1 == rhs.specialJunk1 &&
             lhs.specialJunk2 == rhs.specialJunk2 &&
             lhs.specialJunk3 == rhs.specialJunk3 &&
