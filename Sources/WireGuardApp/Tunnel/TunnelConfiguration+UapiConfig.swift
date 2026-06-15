@@ -74,6 +74,8 @@ extension TunnelConfiguration {
             throw ParseError.multiplePeersWithSamePublicKey
         }
 
+        let existingObfsPSK = interfaceConfiguration?.obfsPSK
+
         interfaceConfiguration?.addresses = base?.interface.addresses ?? []
         interfaceConfiguration?.dns = base?.interface.dns ?? []
         interfaceConfiguration?.dnsSearch = base?.interface.dnsSearch ?? []
@@ -87,7 +89,7 @@ extension TunnelConfiguration {
         interfaceConfiguration?.responsePacketMagicHeader = base?.interface.responsePacketMagicHeader
         interfaceConfiguration?.underloadPacketMagicHeader = base?.interface.underloadPacketMagicHeader
         interfaceConfiguration?.transportPacketMagicHeader = base?.interface.transportPacketMagicHeader
-        interfaceConfiguration?.obfsPSK = base?.interface.obfsPSK ?? interfaceConfiguration?.obfsPSK
+        interfaceConfiguration?.obfsPSK = base?.interface.obfsPSK ?? existingObfsPSK
         interfaceConfiguration?.cookieReplyPacketJunkSize = base?.interface.cookieReplyPacketJunkSize
         interfaceConfiguration?.transportPacketJunkSize = base?.interface.transportPacketJunkSize
         interfaceConfiguration?.specialJunk1 = base?.interface.specialJunk1
