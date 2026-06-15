@@ -19,6 +19,7 @@ class TunnelDetailTableViewController: UITableViewController {
         .junkPacketCount, .junkPacketMinSize, .junkPacketMaxSize,
         .initPacketJunkSize, .responsePacketJunkSize, .cookieReplyPacketJunkSize, .transportPacketJunkSize,
         .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
+        .obfsPSK,
         .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5
     ]
 

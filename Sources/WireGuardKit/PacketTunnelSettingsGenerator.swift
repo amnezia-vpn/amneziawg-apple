@@ -81,6 +81,9 @@ class PacketTunnelSettingsGenerator {
         if let transportPacketMagicHeader = tunnelConfiguration.interface.transportPacketMagicHeader {
             wgSettings.append("h4=\(transportPacketMagicHeader)\n")
         }
+        if let obfsPSK = tunnelConfiguration.interface.obfsPSK {
+            wgSettings.append("obfs_psk=\(obfsPSK.hexKey)\n")
+        }
         if let specialJunk1 = tunnelConfiguration.interface.specialJunk1 {
             wgSettings.append("i1=\(specialJunk1)\n")
         }

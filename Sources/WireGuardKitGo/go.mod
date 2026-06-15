@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/amnezia-vpn/amnezia-libxray v1.0.0
 	github.com/amnezia-vpn/amnezia-xray-core v1.260206.0
-	github.com/amnezia-vpn/amneziawg-go v0.2.18
+	github.com/amnezia-vpn/amneziawg-go v0.2.19-0.20260615103050-21028ef1e5ec
 	golang.org/x/sys v0.41.0
 )
 
@@ -49,3 +49,5 @@ require (
 	gvisor.dev/gvisor v0.0.0-20260122175437-89a5d21be8f0 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
+
+replace github.com/amnezia-vpn/amneziawg-go => github.com/yaroslav-ulta/amneziawg-go v0.2.19-0.20260615103050-21028ef1e5ec

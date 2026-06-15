@@ -38,7 +38,7 @@ class TunnelEditTableViewController: UITableViewController {
         [.junkPacketCount, .junkPacketMinSize, .junkPacketMaxSize,
          .initPacketJunkSize, .responsePacketJunkSize, .cookieReplyPacketJunkSize, .transportPacketJunkSize,
          .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
-         .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5]
+         .obfsPSK, .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5]
     ]
 
     let peerFields: [TunnelViewModel.PeerField] = [
@@ -262,7 +262,7 @@ extension TunnelEditTableViewController {
             cell.keyboardType = .numberPad
         case .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader:
             cell.keyboardType = .numbersAndPunctuation
-        case .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5:
+        case .obfsPSK, .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5:
             cell.keyboardType = .default
         }
 
