@@ -94,6 +94,13 @@ extension TunnelConfiguration {
         interfaceConfiguration?.specialJunk3 = base?.interface.specialJunk3
         interfaceConfiguration?.specialJunk4 = base?.interface.specialJunk4
         interfaceConfiguration?.specialJunk5 = base?.interface.specialJunk5
+        interfaceConfiguration?.headerProtectionKey = base?.interface.headerProtectionKey
+        interfaceConfiguration?.contentPaddingAddition = base?.interface.contentPaddingAddition
+        interfaceConfiguration?.rekeyAfterTime = base?.interface.rekeyAfterTime
+        interfaceConfiguration?.rekeyTimeout = base?.interface.rekeyTimeout
+        interfaceConfiguration?.rejectAfterTime = base?.interface.rejectAfterTime
+        interfaceConfiguration?.keepaliveTimeout = base?.interface.keepaliveTimeout
+        interfaceConfiguration?.maxHandshakeAttempts = base?.interface.maxHandshakeAttempts
 
         if let interfaceConfiguration = interfaceConfiguration {
             self.init(name: base?.name, interface: interfaceConfiguration, peers: peerConfigurations)
@@ -158,13 +165,9 @@ extension TunnelConfiguration {
             }
             peer.endpoint = endpoint
         }
-        if let persistentKeepAliveString = attributes["persistent_keepalive_interval"] {
-            guard let persistentKeepAlive = UInt16(persistentKeepAliveString) else {
-                throw ParseError.peerHasInvalidPersistentKeepAlive(persistentKeepAliveString)
-            }
-            if persistentKeepAlive != 0 {
-                peer.persistentKeepAlive = persistentKeepAlive
-            }
+        if let persistentKeepAliveString = attributes["persistent_keepalive_interval"],
+           !persistentKeepAliveString.isEmpty, persistentKeepAliveString != "0" {
+            peer.persistentKeepAlive = persistentKeepAliveString
         }
         if let rxBytesString = attributes["rx_bytes"] {
             guard let rxBytes = UInt64(rxBytesString) else {

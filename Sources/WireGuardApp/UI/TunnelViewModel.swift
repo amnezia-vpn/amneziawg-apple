@@ -571,13 +571,8 @@ class TunnelViewModel {
                     errorMessages.append(tr("alertInvalidPeerMessageEndpointInvalid"))
                 }
             }
-            if let persistentKeepAliveString = scratchpad[.persistentKeepAlive] {
-                if let persistentKeepAlive = UInt16(persistentKeepAliveString) {
-                    config.persistentKeepAlive = persistentKeepAlive
-                } else {
-                    fieldsWithError.insert(.persistentKeepAlive)
-                    errorMessages.append(tr("alertInvalidPeerMessagePersistentKeepaliveInvalid"))
-                }
+            if let persistentKeepAliveString = scratchpad[.persistentKeepAlive], !persistentKeepAliveString.isEmpty {
+                config.persistentKeepAlive = persistentKeepAliveString
             }
 
             guard errorMessages.isEmpty else { return .error(errorMessages.first!) }

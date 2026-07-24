@@ -27,6 +27,13 @@ public struct InterfaceConfiguration {
     public var specialJunk3: String?
     public var specialJunk4: String?
     public var specialJunk5: String?
+    public var headerProtectionKey: PrivateKey?
+    public var contentPaddingAddition: String?
+    public var rekeyAfterTime: String?
+    public var rekeyTimeout: String?
+    public var rejectAfterTime: String?
+    public var keepaliveTimeout: String?
+    public var maxHandshakeAttempts: String?
 
     public init(privateKey: PrivateKey) {
         self.privateKey = privateKey
@@ -59,6 +66,13 @@ extension InterfaceConfiguration: Equatable {
             lhs.specialJunk2 == rhs.specialJunk2 &&
             lhs.specialJunk3 == rhs.specialJunk3 &&
             lhs.specialJunk4 == rhs.specialJunk4 &&
-            lhs.specialJunk5 == rhs.specialJunk5
+            lhs.specialJunk5 == rhs.specialJunk5 &&
+            lhs.headerProtectionKey == rhs.headerProtectionKey &&
+            lhs.contentPaddingAddition == rhs.contentPaddingAddition &&
+            lhs.rekeyAfterTime == rhs.rekeyAfterTime &&
+            lhs.rekeyTimeout == rhs.rekeyTimeout &&
+            lhs.rejectAfterTime == rhs.rejectAfterTime &&
+            lhs.keepaliveTimeout == rhs.keepaliveTimeout &&
+            lhs.maxHandshakeAttempts == rhs.maxHandshakeAttempts
     }
 }

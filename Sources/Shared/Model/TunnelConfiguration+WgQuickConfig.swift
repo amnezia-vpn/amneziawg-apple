@@ -23,6 +23,7 @@ extension TunnelConfiguration {
         case interfaceHasInvalidMTU(String)
         case interfaceHasUnrecognizedKey(String)
         case interfaceHasInvalidCustomParam(String)
+        case interfaceHasInvalidHeaderProtectionKey(String)
         case peerHasNoPublicKey
         case peerHasInvalidPublicKey(String)
         case peerHasInvalidPreSharedKey(String)
@@ -94,6 +95,13 @@ extension TunnelConfiguration {
                         "i3",
                         "i4",
                         "i5",
+                        "headerprotectionkey",
+                        "contentpaddingaddition",
+                        "rekeyaftertime",
+                        "rekeytimeout",
+                        "rejectaftertime",
+                        "keepalivetimeout",
+                        "maxhandshakeattempts",
                     ]
                     let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
                     if parserState == .inInterfaceSection {
@@ -200,6 +208,27 @@ extension TunnelConfiguration {
         }
         if let specialJunk5 = interface.specialJunk5 {
             output.append("I5 = \(specialJunk5)\n")
+        }
+        if let headerProtectionKey = interface.headerProtectionKey {
+            output.append("HeaderProtectionKey = \(headerProtectionKey.base64Key)\n")
+        }
+        if let contentPaddingAddition = interface.contentPaddingAddition {
+            output.append("ContentPaddingAddition = \(contentPaddingAddition)\n")
+        }
+        if let rekeyAfterTime = interface.rekeyAfterTime {
+            output.append("RekeyAfterTime = \(rekeyAfterTime)\n")
+        }
+        if let rekeyTimeout = interface.rekeyTimeout {
+            output.append("RekeyTimeout = \(rekeyTimeout)\n")
+        }
+        if let rejectAfterTime = interface.rejectAfterTime {
+            output.append("RejectAfterTime = \(rejectAfterTime)\n")
+        }
+        if let keepaliveTimeout = interface.keepaliveTimeout {
+            output.append("KeepaliveTimeout = \(keepaliveTimeout)\n")
+        }
+        if let maxHandshakeAttempts = interface.maxHandshakeAttempts {
+            output.append("MaxHandshakeAttempts = \(maxHandshakeAttempts)\n")
         }
         if !interface.addresses.isEmpty {
             let addressString = interface.addresses.map { $0.stringRepresentation }.joined(separator: ", ")
@@ -348,6 +377,30 @@ extension TunnelConfiguration {
         if let specialJunk5String = attributes["i5"] {
             interface.specialJunk5 = specialJunk5String
         }
+        if let headerProtectionKeyString = attributes["headerprotectionkey"], !headerProtectionKeyString.isEmpty {
+            guard let headerProtectionKey = PrivateKey(base64Key: headerProtectionKeyString) else {
+                throw ParseError.interfaceHasInvalidHeaderProtectionKey(headerProtectionKeyString)
+            }
+            interface.headerProtectionKey = headerProtectionKey
+        }
+        if let contentPaddingAdditionString = attributes["contentpaddingaddition"], !contentPaddingAdditionString.isEmpty {
+            interface.contentPaddingAddition = contentPaddingAdditionString
+        }
+        if let rekeyAfterTimeString = attributes["rekeyaftertime"], !rekeyAfterTimeString.isEmpty {
+            interface.rekeyAfterTime = rekeyAfterTimeString
+        }
+        if let rekeyTimeoutString = attributes["rekeytimeout"], !rekeyTimeoutString.isEmpty {
+            interface.rekeyTimeout = rekeyTimeoutString
+        }
+        if let rejectAfterTimeString = attributes["rejectaftertime"], !rejectAfterTimeString.isEmpty {
+            interface.rejectAfterTime = rejectAfterTimeString
+        }
+        if let keepaliveTimeoutString = attributes["keepalivetimeout"], !keepaliveTimeoutString.isEmpty {
+            interface.keepaliveTimeout = keepaliveTimeoutString
+        }
+        if let maxHandshakeAttemptsString = attributes["maxhandshakeattempts"], !maxHandshakeAttemptsString.isEmpty {
+            interface.maxHandshakeAttempts = maxHandshakeAttemptsString
+        }
         return interface
     }
 
@@ -381,11 +434,8 @@ extension TunnelConfiguration {
             }
             peer.endpoint = endpoint
         }
-        if let persistentKeepAliveString = attributes["persistentkeepalive"] {
-            guard let persistentKeepAlive = UInt16(persistentKeepAliveString) else {
-                throw ParseError.peerHasInvalidPersistentKeepAlive(persistentKeepAliveString)
-            }
-            peer.persistentKeepAlive = persistentKeepAlive
+        if let persistentKeepAliveString = attributes["persistentkeepalive"], !persistentKeepAliveString.isEmpty {
+            peer.persistentKeepAlive = persistentKeepAliveString
         }
         return peer
     }
