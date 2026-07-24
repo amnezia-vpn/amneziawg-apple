@@ -214,11 +214,40 @@ static bool is_valid_mtu(string_span_t s)
 	return is_valid_uint(s, false, 576, 65535);
 }
 
+static bool is_valid_uint_range(string_span_t s, uint64_t min, uint64_t max)
+{
+	size_t dash = s.len;
+
+	for (size_t i = 0; i < s.len; ++i) {
+		if (s.s[i] == '-') {
+			dash = i;
+			break;
+		}
+	}
+	if (dash == s.len)
+		return is_valid_uint(s, false, min, max);
+	if (dash == 0 || dash + 1 >= s.len)
+		return false;
+	return is_valid_uint((string_span_t){ s.s, dash }, false, min, max) &&
+	       is_valid_uint((string_span_t){ s.s + dash + 1, s.len - dash - 1 }, false, min, max);
+}
+
 static bool is_valid_persistentkeepalive(string_span_t s)
 {
 	if (is_same(s, "off"))
 		return true;
+	/* AmneziaWG 3+ allows a range ("22-30"). */
+	return is_valid_uint_range(s, 0, 65535);
+}
+
+static bool is_valid_awg_uint16(string_span_t s)
+{
 	return is_valid_uint(s, false, 0, 65535);
+}
+
+static bool is_valid_awg_range(string_span_t s)
+{
+	return is_valid_uint_range(s, 0, 4294967295ULL);
 }
 
 #ifndef MOBILE_WGQUICK_SUBSET
@@ -344,6 +373,29 @@ enum field {
 	Address,
 	DNS,
 	MTU,
+	Jc,
+	Jmin,
+	Jmax,
+	S1,
+	S2,
+	S3,
+	S4,
+	H1,
+	H2,
+	H3,
+	H4,
+	I1,
+	I2,
+	I3,
+	I4,
+	I5,
+	HeaderProtectionKey,
+	ContentPaddingAddition,
+	RekeyAfterTime,
+	RekeyTimeout,
+	RejectAfterTime,
+	KeepaliveTimeout,
+	MaxHandshakeAttempts,
 #ifndef MOBILE_WGQUICK_SUBSET
 	FwMark,
 	Table,
@@ -378,6 +430,29 @@ static enum field get_field(string_span_t s)
 	check_enum(Address);
 	check_enum(DNS);
 	check_enum(MTU);
+	check_enum(Jc);
+	check_enum(Jmin);
+	check_enum(Jmax);
+	check_enum(S1);
+	check_enum(S2);
+	check_enum(S3);
+	check_enum(S4);
+	check_enum(H1);
+	check_enum(H2);
+	check_enum(H3);
+	check_enum(H4);
+	check_enum(I1);
+	check_enum(I2);
+	check_enum(I3);
+	check_enum(I4);
+	check_enum(I5);
+	check_enum(HeaderProtectionKey);
+	check_enum(ContentPaddingAddition);
+	check_enum(RekeyAfterTime);
+	check_enum(RekeyTimeout);
+	check_enum(RejectAfterTime);
+	check_enum(KeepaliveTimeout);
+	check_enum(MaxHandshakeAttempts);
 	check_enum(PublicKey);
 	check_enum(PresharedKey);
 	check_enum(AllowedIPs);
@@ -544,6 +619,38 @@ static void highlight_value(struct highlight_span_array *ret, const string_span_
 		break;
 	case PersistentKeepalive:
 		append_highlight_span(ret, parent.s, s, is_valid_persistentkeepalive(s) ? HighlightKeepalive : HighlightError);
+		break;
+	case Jc:
+	case Jmin:
+	case Jmax:
+	case S1:
+	case S2:
+	case S3:
+	case S4:
+		append_highlight_span(ret, parent.s, s, is_valid_awg_uint16(s) ? HighlightMTU : HighlightError);
+		break;
+	case H1:
+	case H2:
+	case H3:
+	case H4:
+	case ContentPaddingAddition:
+	case RekeyAfterTime:
+	case RekeyTimeout:
+	case RejectAfterTime:
+	case KeepaliveTimeout:
+	case MaxHandshakeAttempts:
+		append_highlight_span(ret, parent.s, s, is_valid_awg_range(s) ? HighlightMTU : HighlightError);
+		break;
+	case I1:
+	case I2:
+	case I3:
+	case I4:
+	case I5:
+		/* Free-form obfuscation chains; empty means unset. */
+		append_highlight_span(ret, parent.s, s, HighlightHost);
+		break;
+	case HeaderProtectionKey:
+		append_highlight_span(ret, parent.s, s, is_valid_key(s) ? HighlightPrivateKey : HighlightError);
 		break;
 	case Endpoint: {
 		size_t colon;
