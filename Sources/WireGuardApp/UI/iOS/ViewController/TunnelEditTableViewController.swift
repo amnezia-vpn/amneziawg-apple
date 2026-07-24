@@ -38,7 +38,9 @@ class TunnelEditTableViewController: UITableViewController {
         [.junkPacketCount, .junkPacketMinSize, .junkPacketMaxSize,
          .initPacketJunkSize, .responsePacketJunkSize, .cookieReplyPacketJunkSize, .transportPacketJunkSize,
          .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
-         .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5]
+         .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5,
+         .headerProtectionKey, .contentPaddingAddition, .rekeyAfterTime, .rekeyTimeout,
+         .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts]
     ]
 
     let peerFields: [TunnelViewModel.PeerField] = [
@@ -264,6 +266,10 @@ extension TunnelEditTableViewController {
             cell.keyboardType = .numbersAndPunctuation
         case .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5:
             cell.keyboardType = .default
+        case .headerProtectionKey:
+            cell.keyboardType = .default
+        case .contentPaddingAddition, .rekeyAfterTime, .rekeyTimeout, .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts:
+            cell.keyboardType = .numbersAndPunctuation
         }
 
         cell.isValueValid = (!tunnelViewModel.interfaceData.fieldsWithError.contains(field))
@@ -375,7 +381,7 @@ extension TunnelEditTableViewController {
             cell.keyboardType = .numbersAndPunctuation
         case .persistentKeepAlive:
             cell.placeholderText = tr("tunnelEditPlaceholderTextOff")
-            cell.keyboardType = .numberPad
+            cell.keyboardType = .numbersAndPunctuation
         case .excludePrivateIPs, .deletePeer:
             cell.keyboardType = .default
         case .rxBytes, .txBytes, .lastHandshakeTime:

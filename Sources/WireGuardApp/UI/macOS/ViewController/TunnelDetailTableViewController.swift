@@ -39,7 +39,9 @@ class TunnelDetailTableViewController: NSViewController {
         .junkPacketCount, .junkPacketMinSize, .junkPacketMaxSize,
         .initPacketJunkSize, .responsePacketJunkSize, .cookieReplyPacketJunkSize, .transportPacketJunkSize,
         .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
-        .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5
+        .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5,
+        .headerProtectionKey, .contentPaddingAddition, .rekeyAfterTime, .rekeyTimeout,
+        .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts
     ]
 
     static let peerFields: [TunnelViewModel.PeerField] = [

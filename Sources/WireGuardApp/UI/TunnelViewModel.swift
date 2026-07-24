@@ -31,6 +31,13 @@ class TunnelViewModel {
         case specialJunk3
         case specialJunk4
         case specialJunk5
+        case headerProtectionKey
+        case contentPaddingAddition
+        case rekeyAfterTime
+        case rekeyTimeout
+        case rejectAfterTime
+        case keepaliveTimeout
+        case maxHandshakeAttempts
 
         var localizedUIString: String {
             switch self {
@@ -60,6 +67,13 @@ class TunnelViewModel {
             case .specialJunk3: return tr("I3")
             case .specialJunk4: return tr("I4")
             case .specialJunk5: return tr("I5")
+            case .headerProtectionKey: return tr("HeaderProtectionKey")
+            case .contentPaddingAddition: return tr("ContentPaddingAddition")
+            case .rekeyAfterTime: return tr("RekeyAfterTime")
+            case .rekeyTimeout: return tr("RekeyTimeout")
+            case .rejectAfterTime: return tr("RejectAfterTime")
+            case .keepaliveTimeout: return tr("KeepaliveTimeout")
+            case .maxHandshakeAttempts: return tr("MaxHandshakeAttempts")
             }
         }
     }
@@ -244,6 +258,34 @@ class TunnelViewModel {
                 scratchpad[.specialJunk5] = String(specialJunk5)
             }
 
+            if let headerProtectionKey = config.headerProtectionKey {
+                scratchpad[.headerProtectionKey] = headerProtectionKey.base64Key
+            }
+
+            if let contentPaddingAddition = config.contentPaddingAddition {
+                scratchpad[.contentPaddingAddition] = contentPaddingAddition
+            }
+
+            if let rekeyAfterTime = config.rekeyAfterTime {
+                scratchpad[.rekeyAfterTime] = rekeyAfterTime
+            }
+
+            if let rekeyTimeout = config.rekeyTimeout {
+                scratchpad[.rekeyTimeout] = rekeyTimeout
+            }
+
+            if let rejectAfterTime = config.rejectAfterTime {
+                scratchpad[.rejectAfterTime] = rejectAfterTime
+            }
+
+            if let keepaliveTimeout = config.keepaliveTimeout {
+                scratchpad[.keepaliveTimeout] = keepaliveTimeout
+            }
+
+            if let maxHandshakeAttempts = config.maxHandshakeAttempts {
+                scratchpad[.maxHandshakeAttempts] = maxHandshakeAttempts
+            }
+
             return scratchpad
         }
 
@@ -405,6 +447,39 @@ class TunnelViewModel {
 
             if let specialJunk5String = scratchpad[.specialJunk5], !specialJunk5String.isEmpty {
                 config.specialJunk5 = specialJunk5String
+            }
+
+            if let headerProtectionKeyString = scratchpad[.headerProtectionKey], !headerProtectionKeyString.isEmpty {
+                if let headerProtectionKey = PrivateKey(base64Key: headerProtectionKeyString) {
+                    config.headerProtectionKey = headerProtectionKey
+                } else {
+                    fieldsWithError.insert(.headerProtectionKey)
+                    errorMessages.append(tr("alertInvalidInterfaceMessagePrivateKeyInvalid"))
+                }
+            }
+
+            if let contentPaddingAdditionString = scratchpad[.contentPaddingAddition], !contentPaddingAdditionString.isEmpty {
+                config.contentPaddingAddition = contentPaddingAdditionString
+            }
+
+            if let rekeyAfterTimeString = scratchpad[.rekeyAfterTime], !rekeyAfterTimeString.isEmpty {
+                config.rekeyAfterTime = rekeyAfterTimeString
+            }
+
+            if let rekeyTimeoutString = scratchpad[.rekeyTimeout], !rekeyTimeoutString.isEmpty {
+                config.rekeyTimeout = rekeyTimeoutString
+            }
+
+            if let rejectAfterTimeString = scratchpad[.rejectAfterTime], !rejectAfterTimeString.isEmpty {
+                config.rejectAfterTime = rejectAfterTimeString
+            }
+
+            if let keepaliveTimeoutString = scratchpad[.keepaliveTimeout], !keepaliveTimeoutString.isEmpty {
+                config.keepaliveTimeout = keepaliveTimeoutString
+            }
+
+            if let maxHandshakeAttemptsString = scratchpad[.maxHandshakeAttempts], !maxHandshakeAttemptsString.isEmpty {
+                config.maxHandshakeAttempts = maxHandshakeAttemptsString
             }
 
             guard errorMessages.isEmpty else { return .error(errorMessages.first!) }
