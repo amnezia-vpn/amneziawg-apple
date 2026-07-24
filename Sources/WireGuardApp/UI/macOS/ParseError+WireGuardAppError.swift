@@ -53,6 +53,8 @@ extension TunnelConfiguration.ParseError: WireGuardAppError {
             return (tr(format: "macAlertMultipleEntriesForKey (%@)", value), "")
         case .interfaceHasInvalidCustomParam(let customParam):
             return (tr(format: "macAlertInterfaceHasInvalidCustomParam (%@)", customParam), "")
+        case .interfaceHasInvalidHeaderProtectionKey:
+            return (tr("macAlertPrivateKeyInvalid"), tr("alertInvalidInterfaceMessagePrivateKeyInvalid"))
         }
     }
 }

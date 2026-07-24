@@ -96,6 +96,29 @@ class PacketTunnelSettingsGenerator {
         if let specialJunk5 = tunnelConfiguration.interface.specialJunk5 {
             wgSettings.append("i5=\(specialJunk5)\n")
         }
+        if let headerProtectionKey = tunnelConfiguration.interface.headerProtectionKey {
+            wgSettings.append("header_protection_key=\(headerProtectionKey.hexKey)\n")
+        }
+        if let contentPaddingAddition = tunnelConfiguration.interface.contentPaddingAddition,
+           !contentPaddingAddition.isEmpty {
+            wgSettings.append("content_padding_addition=\(contentPaddingAddition)\n")
+        }
+        if let rekeyAfterTime = tunnelConfiguration.interface.rekeyAfterTime, !rekeyAfterTime.isEmpty {
+            wgSettings.append("rekey_after_time=\(rekeyAfterTime)\n")
+        }
+        if let rekeyTimeout = tunnelConfiguration.interface.rekeyTimeout, !rekeyTimeout.isEmpty {
+            wgSettings.append("rekey_timeout=\(rekeyTimeout)\n")
+        }
+        if let rejectAfterTime = tunnelConfiguration.interface.rejectAfterTime, !rejectAfterTime.isEmpty {
+            wgSettings.append("reject_after_time=\(rejectAfterTime)\n")
+        }
+        if let keepaliveTimeout = tunnelConfiguration.interface.keepaliveTimeout, !keepaliveTimeout.isEmpty {
+            wgSettings.append("keepalive_timeout=\(keepaliveTimeout)\n")
+        }
+        if let maxHandshakeAttempts = tunnelConfiguration.interface.maxHandshakeAttempts,
+           !maxHandshakeAttempts.isEmpty {
+            wgSettings.append("max_handshake_attempts=\(maxHandshakeAttempts)\n")
+        }
         if !tunnelConfiguration.peers.isEmpty {
             wgSettings.append("replace_peers=true\n")
         }
@@ -113,7 +136,7 @@ class PacketTunnelSettingsGenerator {
             }
             resolutionResults.append(result)
 
-            let persistentKeepAlive = peer.persistentKeepAlive ?? 0
+            let persistentKeepAlive = peer.persistentKeepAlive ?? "0"
             wgSettings.append("persistent_keepalive_interval=\(persistentKeepAlive)\n")
             if !peer.allowedIPs.isEmpty {
                 wgSettings.append("replace_allowed_ips=true\n")

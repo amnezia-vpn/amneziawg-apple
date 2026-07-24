@@ -45,7 +45,7 @@ final class HandshakeFreshnessEvaluatorTests: XCTestCase {
     private func makePeer(index: Int = 0) throws -> PeerConfiguration {
         let privateKey = PrivateKey()
         var peer = PeerConfiguration(publicKey: privateKey.publicKey)
-        peer.persistentKeepAlive = UInt16(index)
+        peer.persistentKeepAlive = String(index)
         return peer
     }
 }
