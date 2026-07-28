@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
@@ -44,7 +43,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeIconFiles</key>
-			<array />
+			<array/>
 			<key>CFBundleTypeName</key>
 			<string>Text file</string>
 			<key>CFBundleTypeRole</key>
@@ -72,11 +71,11 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false />
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
-	<true />
+	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<false />
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Localized</string>
 	<key>NSFaceIDUsageDescription</key>
@@ -84,7 +83,7 @@
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
-	<array />
+	<array/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -122,6 +121,6 @@
 		</dict>
 	</array>
 	<key>com.wireguard.ios.app_group_id</key>
-	<string>group.$(APP_ID_IOS)</string>
+	<string>$(APP_GROUP_IDENTIFIER)</string>
 </dict>
 </plist>
