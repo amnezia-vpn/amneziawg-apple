@@ -470,7 +470,7 @@ public class WireGuardAdapter {
                 wgDisableSomeRoamingForBrokenMobileSemantics(handle)
                 wgBumpSockets(handle)
             } else {
-                if self.shouldPauseBackendOnUnsatisfiedPath() {
+                if self.shouldPauseBackendOnUnsatisfiedPath(path: path) {
                     self.logHandler(.verbose, "Connectivity offline, pausing backend.")
 
                     self.state = .temporaryShutdown(settingsGenerator)
@@ -523,22 +523,18 @@ public class WireGuardAdapter {
         12
     }
 
-    private func shouldPauseBackendOnUnsatisfiedPath() -> Bool {
-        // `.unsatisfied` is commonly reported right after installing kill-switch routes (Wi‑Fi is especially prone).
-        // Suppress pausing for a short grace period after the last network settings update.
-        if let lastUpdateAt = self.lastNetworkSettingsUpdateAt,
-           Date().timeIntervalSince(lastUpdateAt) < self.unsatisfiedGracePeriodAfterNetworkSettings {
-            return false
+    private func shouldPauseBackendOnUnsatisfiedPath(path: Network.NWPath) -> Bool {
+        let hasPhysicalInterface = path.availableInterfaces.contains {
+            $0.type == .wifi || $0.type == .cellular
         }
-
-        // If we have never completed a handshake, treat `.unsatisfied` as transient during bootstrap.
-        if !self.everHadHandshake {
-            return false
-        }
-
-        // Outside the grace period, treat `.unsatisfied` as a real offline transition.
-        // (We still keep `everHadHandshake` for future heuristics and for logging/debugging.)
-        return true
+        return NetworkPathRetentionPolicy.shouldPauseBackend(
+            hasSatisfiablePath: path.status.isSatisfiable,
+            hasPhysicalInterface: hasPhysicalInterface,
+            everHadHandshake: self.everHadHandshake,
+            lastNetworkSettingsUpdateAt: self.lastNetworkSettingsUpdateAt,
+            now: Date(),
+            gracePeriod: self.unsatisfiedGracePeriodAfterNetworkSettings
+        )
     }
 
     private func remainingUnsatisfiedGraceSeconds() -> TimeInterval {
