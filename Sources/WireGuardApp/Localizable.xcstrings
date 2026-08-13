@@ -2609,7 +2609,7 @@
       }
     },
     "alertInvalidInterfaceMessageDNSInvalid" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -3835,7 +3835,7 @@
       }
     },
     "alertInvalidPeerMessagePersistentKeepaliveInvalid" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -11282,7 +11282,7 @@
       }
     },
     "macAlertAddressInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11371,7 +11371,7 @@
       }
     },
     "macAlertAllowedIPInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11460,7 +11460,7 @@
       }
     },
     "macAlertDNSInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11555,7 +11555,7 @@
       }
     },
     "macAlertDuplicateName (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11638,7 +11638,7 @@
       }
     },
     "macAlertEndpointInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11733,7 +11733,7 @@
       }
     },
     "macAlertInfoUnrecognizedInterfaceKey" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -11852,7 +11852,7 @@
       }
     },
     "macAlertInfoUnrecognizedPeerKey" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -11971,7 +11971,7 @@
       }
     },
     "macAlertInterfaceHasInvalidCustomParam (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -11988,7 +11988,7 @@
       }
     },
     "macAlertInvalidLine (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12071,7 +12071,7 @@
       }
     },
     "macAlertListenPortInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12160,7 +12160,7 @@
       }
     },
     "macAlertMTUInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12249,7 +12249,7 @@
       }
     },
     "macAlertMultipleEntriesForKey (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12326,7 +12326,7 @@
       }
     },
     "macAlertMultipleInterfaces" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -12445,7 +12445,7 @@
       }
     },
     "macAlertNameIsEmpty" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -12564,7 +12564,7 @@
       }
     },
     "macAlertNoInterface" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -12683,7 +12683,7 @@
       }
     },
     "macAlertPersistentKeepliveInvalid (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12772,7 +12772,7 @@
       }
     },
     "macAlertPreSharedKeyInvalid" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -12891,7 +12891,7 @@
       }
     },
     "macAlertPrivateKeyInvalid" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -13010,7 +13010,7 @@
       }
     },
     "macAlertPublicKeyInvalid" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -13129,7 +13129,7 @@
       }
     },
     "macAlertUnrecognizedInterfaceKey (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13212,7 +13212,7 @@
       }
     },
     "macAlertUnrecognizedPeerKey (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13295,7 +13295,7 @@
       }
     },
     "macAppExitingWithActiveTunnelInfo" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -13414,7 +13414,7 @@
       }
     },
     "macAppExitingWithActiveTunnelMessage" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -13533,7 +13533,7 @@
       }
     },
     "macAppStoreUpdatingAlertInfoWithOnDemand (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13610,7 +13610,7 @@
       }
     },
     "macAppStoreUpdatingAlertInfoWithoutOnDemand (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13688,7 +13688,7 @@
     },
     "macAppStoreUpdatingAlertMessage" : {
       "comment" : "Mac App Store updating alert",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -13808,7 +13808,7 @@
     },
     "macAppVersion (%@)" : {
       "comment" : "Mac about dialog",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13897,7 +13897,7 @@
       }
     },
     "macButtonDeleteTunnels (%d)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -13992,7 +13992,7 @@
       }
     },
     "macButtonEdit" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14111,7 +14111,7 @@
       }
     },
     "macButtonImportTunnels" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14230,7 +14230,7 @@
       }
     },
     "macConfirmAndQuitAlertCloseWindow" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14349,7 +14349,7 @@
       }
     },
     "macConfirmAndQuitAlertInfo" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14469,7 +14469,7 @@
     },
     "macConfirmAndQuitAlertMessage" : {
       "comment" : "Mac alert",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14588,7 +14588,7 @@
       }
     },
     "macConfirmAndQuitAlertQuitWireGuard" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14707,7 +14707,7 @@
       }
     },
     "macConfirmAndQuitInfoWithActiveTunnel (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14784,7 +14784,7 @@
       }
     },
     "macDeleteMultipleTunnelsConfirmationAlertMessage (%d)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -14873,7 +14873,7 @@
       }
     },
     "macDeleteTunnelConfirmationAlertButtonTitleCancel" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -14992,7 +14992,7 @@
       }
     },
     "macDeleteTunnelConfirmationAlertButtonTitleDelete" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -15111,7 +15111,7 @@
       }
     },
     "macDeleteTunnelConfirmationAlertButtonTitleDeleting" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -15230,7 +15230,7 @@
       }
     },
     "macDeleteTunnelConfirmationAlertInfo" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -15349,7 +15349,7 @@
       }
     },
     "macDeleteTunnelConfirmationAlertMessage (%@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15439,7 +15439,7 @@
     },
     "macEditDiscard" : {
       "comment" : "Mac editing config",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -15558,7 +15558,7 @@
       }
     },
     "macEditSave" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -15678,7 +15678,7 @@
     },
     "macExportPrivateData" : {
       "comment" : "Privacy",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -15798,7 +15798,7 @@
     },
     "macFieldKey (%@)" : {
       "comment" : "Mac detail/edit view fields",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -15881,7 +15881,7 @@
       }
     },
     "macFieldOnDemand" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16000,7 +16000,7 @@
       }
     },
     "macFieldOnDemandSSIDs" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16202,7 +16202,7 @@
       }
     },
     "macLogButtonTitleClose" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16321,7 +16321,7 @@
       }
     },
     "macLogButtonTitleSave" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16440,7 +16440,7 @@
       }
     },
     "macLogColumnTitleLogMessage" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16560,7 +16560,7 @@
     },
     "macLogColumnTitleTime" : {
       "comment" : "Mac log view",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16679,7 +16679,7 @@
       }
     },
     "macMenuAbout" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16798,7 +16798,7 @@
       }
     },
     "macMenuAddEmptyTunnel" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -16917,7 +16917,7 @@
       }
     },
     "macMenuCloseWindow" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17036,7 +17036,7 @@
       }
     },
     "macMenuCopy" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17155,7 +17155,7 @@
       }
     },
     "macMenuCut" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17274,7 +17274,7 @@
       }
     },
     "macMenuDeleteSelected" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17393,7 +17393,7 @@
       }
     },
     "macMenuEdit" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17512,7 +17512,7 @@
       }
     },
     "macMenuEditTunnel" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17631,7 +17631,7 @@
       }
     },
     "macMenuExportTunnels" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17750,7 +17750,7 @@
       }
     },
     "macMenuFile" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17869,7 +17869,7 @@
       }
     },
     "macMenuHideApp" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -17988,7 +17988,7 @@
       }
     },
     "macMenuHideOtherApps" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18107,7 +18107,7 @@
       }
     },
     "macMenuImportTunnels" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18226,7 +18226,7 @@
       }
     },
     "macMenuManageTunnels" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18345,7 +18345,7 @@
       }
     },
     "macMenuMinimize" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18465,7 +18465,7 @@
     },
     "macMenuNetworks (%@)" : {
       "comment" : "Mac status bar menu / pulldown menu / main menu",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -18554,7 +18554,7 @@
       }
     },
     "macMenuNetworksNone" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18673,7 +18673,7 @@
       }
     },
     "macMenuPaste" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18792,7 +18792,7 @@
       }
     },
     "macMenuQuit" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -18911,7 +18911,7 @@
       }
     },
     "macMenuSelectAll" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19030,7 +19030,7 @@
       }
     },
     "macMenuShowAllApps" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19149,7 +19149,7 @@
       }
     },
     "macMenuTitle" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19268,7 +19268,7 @@
       }
     },
     "macMenuToggleStatus" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19387,7 +19387,7 @@
       }
     },
     "macMenuTunnel" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19506,7 +19506,7 @@
       }
     },
     "macMenuViewLog" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19625,7 +19625,7 @@
       }
     },
     "macMenuWindow" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19744,7 +19744,7 @@
       }
     },
     "macMenuZoom" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19863,7 +19863,7 @@
       }
     },
     "macNameFieldExportLog" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -19982,7 +19982,7 @@
       }
     },
     "macNameFieldExportZip" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20101,7 +20101,7 @@
       }
     },
     "macSheetButtonExportLog" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20220,7 +20220,7 @@
       }
     },
     "macSheetButtonExportZip" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20339,7 +20339,7 @@
       }
     },
     "macSheetButtonImport" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20459,7 +20459,7 @@
     },
     "macStatus (%@)" : {
       "comment" : "Mac status display",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -20554,7 +20554,7 @@
       }
     },
     "macToggleStatusButtonActivate" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20673,7 +20673,7 @@
       }
     },
     "macToggleStatusButtonActivating" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20792,7 +20792,7 @@
       }
     },
     "macToggleStatusButtonDeactivate" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -20911,7 +20911,7 @@
       }
     },
     "macToggleStatusButtonDeactivating" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21030,7 +21030,7 @@
       }
     },
     "macToggleStatusButtonDisableOnDemand" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -21047,7 +21047,7 @@
       }
     },
     "macToggleStatusButtonDisableOnDemandDeactivate" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -21064,7 +21064,7 @@
       }
     },
     "macToggleStatusButtonEnableOnDemand" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -21081,7 +21081,7 @@
       }
     },
     "macToggleStatusButtonReasserting" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21200,7 +21200,7 @@
       }
     },
     "macToggleStatusButtonRestarting" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21319,7 +21319,7 @@
       }
     },
     "macToggleStatusButtonWaiting" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21439,7 +21439,7 @@
     },
     "macToolTipEditTunnel" : {
       "comment" : "Mac tooltip",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21558,7 +21558,7 @@
       }
     },
     "macToolTipToggleStatus" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21677,7 +21677,7 @@
       }
     },
     "macTunnelsMenuTitle" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21796,7 +21796,7 @@
       }
     },
     "macUnusableTunnelButtonTitleDeleteTunnel" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -21915,7 +21915,7 @@
       }
     },
     "macUnusableTunnelInfo" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -22035,7 +22035,7 @@
     },
     "macUnusableTunnelMessage" : {
       "comment" : "Mac unusable tunnel view",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -22154,7 +22154,7 @@
       }
     },
     "macViewPrivateData" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -22274,7 +22274,7 @@
     },
     "macWindowTitleManageTunnels" : {
       "comment" : "Mac manage tunnels window",
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "ca" : {
           "stringUnit" : {
@@ -29288,7 +29288,7 @@
       }
     },
     "tunnelOnDemandSSIDOptionDescriptionMac (%1$@: %2$@)" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -32709,7 +32709,7 @@
       }
     },
     "tunnelStatusAddendumOnDemandDisabled" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -32726,7 +32726,7 @@
       }
     },
     "tunnelStatusAddendumOnDemandEnabled" : {
-      "extractionState" : "migrated",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {

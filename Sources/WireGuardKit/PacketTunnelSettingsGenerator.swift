@@ -119,6 +119,12 @@ class PacketTunnelSettingsGenerator {
            !maxHandshakeAttempts.isEmpty {
             wgSettings.append("max_handshake_attempts=\(maxHandshakeAttempts)\n")
         }
+        if let randomTrailers = tunnelConfiguration.interface.randomTrailers, !randomTrailers.isEmpty {
+            wgSettings.append("random_trailers=\(Self.uapiBool(randomTrailers))\n")
+        }
+        if let disableCookies = tunnelConfiguration.interface.disableCookies, !disableCookies.isEmpty {
+            wgSettings.append("disable_cookies=\(Self.uapiBool(disableCookies))\n")
+        }
         if !tunnelConfiguration.peers.isEmpty {
             wgSettings.append("replace_peers=true\n")
         }
@@ -274,6 +280,17 @@ class PacketTunnelSettingsGenerator {
         }
 
         return (ipv4ExcludedRoutes, ipv6ExcludedRoutes)
+    }
+
+    /// Converts awg-quick on/off (and 0/1/true/false) to UAPI 1/0.
+    /// amneziawg-go uses strconv.ParseBool and rejects "on"/"off".
+    private class func uapiBool(_ value: String) -> String {
+        switch value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "on", "1", "true", "t", "yes":
+            return "1"
+        default:
+            return "0"
+        }
     }
 
     private class func reresolveEndpoint(endpoint: Endpoint) -> EndpointResolutionResult {

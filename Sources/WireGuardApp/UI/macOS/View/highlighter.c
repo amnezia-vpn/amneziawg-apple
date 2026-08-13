@@ -250,6 +250,11 @@ static bool is_valid_awg_range(string_span_t s)
 	return is_valid_uint_range(s, 0, 4294967295ULL);
 }
 
+static bool is_valid_on_off(string_span_t s)
+{
+	return is_same(s, "on") || is_same(s, "off") || is_same(s, "0") || is_same(s, "1");
+}
+
 #ifndef MOBILE_WGQUICK_SUBSET
 
 static bool is_valid_fwmark(string_span_t s)
@@ -396,6 +401,8 @@ enum field {
 	RejectAfterTime,
 	KeepaliveTimeout,
 	MaxHandshakeAttempts,
+	RandomTrailers,
+	DisableCookies,
 #ifndef MOBILE_WGQUICK_SUBSET
 	FwMark,
 	Table,
@@ -453,6 +460,8 @@ static enum field get_field(string_span_t s)
 	check_enum(RejectAfterTime);
 	check_enum(KeepaliveTimeout);
 	check_enum(MaxHandshakeAttempts);
+	check_enum(RandomTrailers);
+	check_enum(DisableCookies);
 	check_enum(PublicKey);
 	check_enum(PresharedKey);
 	check_enum(AllowedIPs);
@@ -651,6 +660,10 @@ static void highlight_value(struct highlight_span_array *ret, const string_span_
 		break;
 	case HeaderProtectionKey:
 		append_highlight_span(ret, parent.s, s, is_valid_key(s) ? HighlightPrivateKey : HighlightError);
+		break;
+	case RandomTrailers:
+	case DisableCookies:
+		append_highlight_span(ret, parent.s, s, is_valid_on_off(s) ? HighlightMTU : HighlightError);
 		break;
 	case Endpoint: {
 		size_t colon;

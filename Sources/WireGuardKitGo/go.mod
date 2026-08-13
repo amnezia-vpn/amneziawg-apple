@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/amnezia-vpn/amnezia-libxray v1.0.2
-	github.com/amnezia-vpn/amneziawg-go/v3 v3.0.1
+	github.com/amnezia-vpn/amneziawg-go/v3 v3.1.20260813
 	github.com/xtls/xray-core v1.260724.0
 	golang.org/x/sys v0.46.0
 )

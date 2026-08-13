@@ -38,6 +38,8 @@ class TunnelViewModel {
         case rejectAfterTime
         case keepaliveTimeout
         case maxHandshakeAttempts
+        case randomTrailers
+        case disableCookies
 
         var localizedUIString: String {
             switch self {
@@ -74,6 +76,8 @@ class TunnelViewModel {
             case .rejectAfterTime: return tr("RejectAfterTime")
             case .keepaliveTimeout: return tr("KeepaliveTimeout")
             case .maxHandshakeAttempts: return tr("MaxHandshakeAttempts")
+            case .randomTrailers: return tr("RandomTrailers")
+            case .disableCookies: return tr("DisableCookies")
             }
         }
     }
@@ -286,6 +290,14 @@ class TunnelViewModel {
                 scratchpad[.maxHandshakeAttempts] = maxHandshakeAttempts
             }
 
+            if let randomTrailers = config.randomTrailers {
+                scratchpad[.randomTrailers] = randomTrailers
+            }
+
+            if let disableCookies = config.disableCookies {
+                scratchpad[.disableCookies] = disableCookies
+            }
+
             return scratchpad
         }
 
@@ -480,6 +492,14 @@ class TunnelViewModel {
 
             if let maxHandshakeAttemptsString = scratchpad[.maxHandshakeAttempts], !maxHandshakeAttemptsString.isEmpty {
                 config.maxHandshakeAttempts = maxHandshakeAttemptsString
+            }
+
+            if let randomTrailersString = scratchpad[.randomTrailers], !randomTrailersString.isEmpty {
+                config.randomTrailers = randomTrailersString
+            }
+
+            if let disableCookiesString = scratchpad[.disableCookies], !disableCookiesString.isEmpty {
+                config.disableCookies = disableCookiesString
             }
 
             guard errorMessages.isEmpty else { return .error(errorMessages.first!) }
