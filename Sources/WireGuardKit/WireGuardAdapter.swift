@@ -48,6 +48,13 @@ public class WireGuardAdapter {
     /// Used to suppress transient `.unsatisfied` events immediately after installing routes (common on Wi‑Fi with kill-switch routes).
     private var lastNetworkSettingsUpdateAt: Date?
 
+    /// Start of the current unsatisfied physical-path transition.
+    private var unsatisfiedPathStartedAt: Date?
+
+    /// Delayed re-evaluation that turns a transient path grace period into a
+    /// bounded one even when NetworkExtension emits no follow-up path event.
+    private var pendingUnsatisfiedPathEvaluation: DispatchWorkItem?
+
     /// Packet tunnel provider.
     private weak var packetTunnelProvider: NEPacketTunnelProvider?
 
@@ -147,6 +154,7 @@ public class WireGuardAdapter {
 
         // Cancel network monitor
         networkMonitor?.cancel()
+        pendingUnsatisfiedPathEvaluation?.cancel()
 
         // Shutdown the tunnel
         if case .started(let handle, _) = self.state {
@@ -237,6 +245,9 @@ public class WireGuardAdapter {
 
             self.networkMonitor?.cancel()
             self.networkMonitor = nil
+            self.pendingUnsatisfiedPathEvaluation?.cancel()
+            self.pendingUnsatisfiedPathEvaluation = nil
+            self.unsatisfiedPathStartedAt = nil
 
             self.state = .stopped
 
@@ -447,6 +458,9 @@ public class WireGuardAdapter {
     /// Helper method used by network path monitor.
     /// - Parameter path: new network path
     private func didReceivePathUpdate(path: Network.NWPath) {
+        self.pendingUnsatisfiedPathEvaluation?.cancel()
+        self.pendingUnsatisfiedPathEvaluation = nil
+
         self.logHandler(.verbose, "Network change detected with \(path.status) route and interface order \(path.availableInterfaces)")
         let lastUpdate = self.lastNetworkSettingsUpdateAt.map { String(describing: $0) } ?? "nil"
         self.logHandler(.verbose, "Path update state: state=\(self.state) lastNetworkSettingsUpdateAt=\(lastUpdate)")
@@ -459,6 +473,7 @@ public class WireGuardAdapter {
         switch self.state {
         case .started(let handle, let settingsGenerator):
             if path.status.isSatisfiable {
+                self.unsatisfiedPathStartedAt = nil
                 let (wgConfig, resolutionResults) = settingsGenerator.endpointUapiConfiguration()
                 self.logEndpointResolutionResults(resolutionResults)
 
@@ -466,15 +481,20 @@ public class WireGuardAdapter {
                 wgDisableSomeRoamingForBrokenMobileSemantics(handle)
                 wgBumpSockets(handle)
             } else {
+                if self.unsatisfiedPathStartedAt == nil {
+                    self.unsatisfiedPathStartedAt = Date()
+                }
                 if self.shouldPauseBackendOnUnsatisfiedPath(path: path) {
                     self.logHandler(.verbose, "Connectivity offline, pausing backend.")
 
+                    self.unsatisfiedPathStartedAt = nil
                     self.state = .temporaryShutdown(settingsGenerator)
                     wgTurnOff(handle)
                 } else {
-                    let remaining = self.remainingUnsatisfiedGraceSeconds()
+                    let remaining = self.remainingUnsatisfiedGraceSeconds(path: path)
                     if remaining > 0 {
-                        self.logHandler(.verbose, "Connectivity unsatisfied right after applying routes, not pausing backend for ~\(Int(ceil(remaining)))s.")
+                        self.logHandler(.verbose, "Connectivity unsatisfied during bounded route-transition grace; rechecking in ~\(Int(ceil(remaining)))s.")
+                        self.scheduleUnsatisfiedPathEvaluation(path: path, after: remaining)
                     } else {
                         self.logHandler(.verbose, "Connectivity unsatisfied right after applying routes, not pausing backend.")
                     }
@@ -523,19 +543,46 @@ public class WireGuardAdapter {
         let hasPhysicalInterface = path.availableInterfaces.contains {
             NetworkPathRetentionPolicy.isPhysicalInterfaceType($0.type)
         }
+        let graceStartedAt = self.unsatisfiedGraceStartedAt(hasPhysicalInterface: hasPhysicalInterface)
         return NetworkPathRetentionPolicy.shouldPauseBackend(
             hasSatisfiablePath: path.status.isSatisfiable,
             hasPhysicalInterface: hasPhysicalInterface,
-            lastNetworkSettingsUpdateAt: self.lastNetworkSettingsUpdateAt,
+            lastNetworkSettingsUpdateAt: graceStartedAt,
             now: Date(),
             gracePeriod: self.unsatisfiedGracePeriodAfterNetworkSettings
         )
     }
 
-    private func remainingUnsatisfiedGraceSeconds() -> TimeInterval {
-        guard let lastUpdateAt = self.lastNetworkSettingsUpdateAt else { return 0 }
-        let elapsed = Date().timeIntervalSince(lastUpdateAt)
+    private func unsatisfiedGraceStartedAt(hasPhysicalInterface: Bool) -> Date? {
+        guard hasPhysicalInterface, let pathStartedAt = self.unsatisfiedPathStartedAt else {
+            return self.lastNetworkSettingsUpdateAt
+        }
+        guard let settingsUpdatedAt = self.lastNetworkSettingsUpdateAt else {
+            return pathStartedAt
+        }
+        return max(settingsUpdatedAt, pathStartedAt)
+    }
+
+    private func remainingUnsatisfiedGraceSeconds(path: Network.NWPath) -> TimeInterval {
+        let hasPhysicalInterface = path.availableInterfaces.contains {
+            NetworkPathRetentionPolicy.isPhysicalInterfaceType($0.type)
+        }
+        guard let graceStartedAt = self.unsatisfiedGraceStartedAt(hasPhysicalInterface: hasPhysicalInterface) else {
+            return 0
+        }
+        let elapsed = Date().timeIntervalSince(graceStartedAt)
         return max(0, self.unsatisfiedGracePeriodAfterNetworkSettings - elapsed)
+    }
+
+    private func scheduleUnsatisfiedPathEvaluation(path: Network.NWPath, after delay: TimeInterval) {
+        guard delay > 0 else { return }
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.pendingUnsatisfiedPathEvaluation = nil
+            self.didReceivePathUpdate(path: path)
+        }
+        self.pendingUnsatisfiedPathEvaluation = workItem
+        self.workQueue.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
 }

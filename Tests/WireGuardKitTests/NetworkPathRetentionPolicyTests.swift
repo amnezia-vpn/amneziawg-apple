@@ -5,13 +5,26 @@ import XCTest
 @testable import WireGuardKit
 
 final class NetworkPathRetentionPolicyTests: XCTestCase {
-    func testKeepsEstablishedBackendWhenPhysicalInterfaceRemainsAvailable() {
-        XCTAssertFalse(
+    func testPausesBackendWhenPhysicalInterfaceRemainsUnsatisfiedAfterGracePeriod() {
+        XCTAssertTrue(
             NetworkPathRetentionPolicy.shouldPauseBackend(
                 hasSatisfiablePath: false,
                 hasPhysicalInterface: true,
                 lastNetworkSettingsUpdateAt: Date().addingTimeInterval(-60),
                 now: Date(),
+                gracePeriod: 12
+            )
+        )
+    }
+
+    func testKeepsBackendWhenPhysicalInterfaceIsUnsatisfiedDuringGracePeriod() {
+        let now = Date()
+        XCTAssertFalse(
+            NetworkPathRetentionPolicy.shouldPauseBackend(
+                hasSatisfiablePath: false,
+                hasPhysicalInterface: true,
+                lastNetworkSettingsUpdateAt: now.addingTimeInterval(-5),
+                now: now,
                 gracePeriod: 12
             )
         )

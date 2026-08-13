@@ -13,11 +13,14 @@ enum HandshakeFreshnessEvaluator {
     /// - Parameters:
     ///   - peers: The peer configurations returned from the WireGuard runtime.
     ///   - cutoffDate: The minimum acceptable handshake timestamp.
-    static func containsFreshHandshake(peers: [PeerConfiguration], cutoffDate: Date) -> Bool {
+    static func containsFreshHandshake(
+        peers: [PeerConfiguration], cutoffDate: Date, now: Date = Date()
+    ) -> Bool {
         let rxBytesThreshold: UInt64 = 4096
         return peers.contains { peer in
             if let lastHandshakeTime = peer.lastHandshakeTime,
-                lastHandshakeTime >= cutoffDate
+                lastHandshakeTime >= cutoffDate,
+                lastHandshakeTime <= now
             {
                 return true
             }

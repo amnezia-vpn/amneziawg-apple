@@ -7,22 +7,18 @@ import Network
 enum NetworkPathRetentionPolicy {
     static func shouldPauseBackend(
         hasSatisfiablePath: Bool,
-        hasPhysicalInterface: Bool,
-        lastNetworkSettingsUpdateAt: Date?,
+        hasPhysicalInterface _: Bool,
+        lastNetworkSettingsUpdateAt graceStartedAt: Date?,
         now: Date,
         gracePeriod: TimeInterval
     ) -> Bool {
         guard !hasSatisfiablePath else { return false }
 
-        // NetworkExtension can briefly report an unsatisfied path while Wi-Fi or
-        // cellular remains available during a route transition. Keep an already
-        // established backend alive; WireGuard will resume traffic naturally.
-        if hasPhysicalInterface {
-            return false
-        }
-
-        if let lastNetworkSettingsUpdateAt,
-           now.timeIntervalSince(lastNetworkSettingsUpdateAt) < gracePeriod {
+        // The adapter supplies the newest relevant grace anchor: either the
+        // network-settings update or the start of an unsatisfied physical-path
+        // transition. A listed interface alone is not proof of connectivity.
+        if let graceStartedAt,
+           now.timeIntervalSince(graceStartedAt) < gracePeriod {
             return false
         }
 
