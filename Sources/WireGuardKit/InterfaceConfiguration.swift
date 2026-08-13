@@ -34,6 +34,8 @@ public struct InterfaceConfiguration {
     public var rejectAfterTime: String?
     public var keepaliveTimeout: String?
     public var maxHandshakeAttempts: String?
+    public var randomTrailers: String?
+    public var disableCookies: String?
 
     public init(privateKey: PrivateKey) {
         self.privateKey = privateKey
@@ -73,6 +75,8 @@ extension InterfaceConfiguration: Equatable {
             lhs.rekeyTimeout == rhs.rekeyTimeout &&
             lhs.rejectAfterTime == rhs.rejectAfterTime &&
             lhs.keepaliveTimeout == rhs.keepaliveTimeout &&
-            lhs.maxHandshakeAttempts == rhs.maxHandshakeAttempts
+            lhs.maxHandshakeAttempts == rhs.maxHandshakeAttempts &&
+            lhs.randomTrailers == rhs.randomTrailers &&
+            lhs.disableCookies == rhs.disableCookies
     }
 }

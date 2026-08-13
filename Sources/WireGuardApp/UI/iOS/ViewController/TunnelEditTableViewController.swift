@@ -40,7 +40,7 @@ class TunnelEditTableViewController: UITableViewController {
          .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
          .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5,
          .headerProtectionKey, .contentPaddingAddition, .rekeyAfterTime, .rekeyTimeout,
-         .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts]
+         .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts, .randomTrailers, .disableCookies]
     ]
 
     let peerFields: [TunnelViewModel.PeerField] = [
@@ -270,6 +270,8 @@ extension TunnelEditTableViewController {
             cell.keyboardType = .default
         case .contentPaddingAddition, .rekeyAfterTime, .rekeyTimeout, .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts:
             cell.keyboardType = .numbersAndPunctuation
+        case .randomTrailers, .disableCookies:
+            cell.keyboardType = .default
         }
 
         cell.isValueValid = (!tunnelViewModel.interfaceData.fieldsWithError.contains(field))

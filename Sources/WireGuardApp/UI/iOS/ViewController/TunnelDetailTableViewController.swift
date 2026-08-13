@@ -21,7 +21,7 @@ class TunnelDetailTableViewController: UITableViewController {
         .initPacketMagicHeader, .responsePacketMagicHeader, .underloadPacketMagicHeader, .transportPacketMagicHeader,
         .specialJunk1, .specialJunk2, .specialJunk3, .specialJunk4, .specialJunk5,
         .headerProtectionKey, .contentPaddingAddition, .rekeyAfterTime, .rekeyTimeout,
-        .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts
+        .rejectAfterTime, .keepaliveTimeout, .maxHandshakeAttempts, .randomTrailers, .disableCookies
     ]
 
     static let peerFields: [TunnelViewModel.PeerField] = [
