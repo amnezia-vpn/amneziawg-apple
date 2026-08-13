@@ -101,6 +101,8 @@ extension TunnelConfiguration {
         interfaceConfiguration?.rejectAfterTime = base?.interface.rejectAfterTime
         interfaceConfiguration?.keepaliveTimeout = base?.interface.keepaliveTimeout
         interfaceConfiguration?.maxHandshakeAttempts = base?.interface.maxHandshakeAttempts
+        interfaceConfiguration?.randomTrailers = base?.interface.randomTrailers
+        interfaceConfiguration?.disableCookies = base?.interface.disableCookies
 
         if let interfaceConfiguration = interfaceConfiguration {
             self.init(name: base?.name, interface: interfaceConfiguration, peers: peerConfigurations)

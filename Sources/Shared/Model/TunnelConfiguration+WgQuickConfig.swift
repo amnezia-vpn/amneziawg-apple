@@ -230,6 +230,12 @@ extension TunnelConfiguration {
         if let maxHandshakeAttempts = interface.maxHandshakeAttempts {
             output.append("MaxHandshakeAttempts = \(maxHandshakeAttempts)\n")
         }
+        if let randomTrailers = interface.randomTrailers {
+            output.append("RandomTrailers = \(randomTrailers)\n")
+        }
+        if let disableCookies = interface.disableCookies {
+            output.append("DisableCookies = \(disableCookies)\n")
+        }
         if !interface.addresses.isEmpty {
             let addressString = interface.addresses.map { $0.stringRepresentation }.joined(separator: ", ")
             output.append("Address = \(addressString)\n")
@@ -400,6 +406,12 @@ extension TunnelConfiguration {
         }
         if let maxHandshakeAttemptsString = attributes["maxhandshakeattempts"], !maxHandshakeAttemptsString.isEmpty {
             interface.maxHandshakeAttempts = maxHandshakeAttemptsString
+        }
+        if let randomTrailersString = attributes["randomtrailers"], !randomTrailersString.isEmpty {
+            interface.randomTrailers = randomTrailersString
+        }
+        if let disableCookiesString = attributes["disablecookies"], !disableCookiesString.isEmpty {
+            interface.disableCookies = disableCookiesString
         }
         return interface
     }
