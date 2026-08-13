@@ -48,9 +48,6 @@ public class WireGuardAdapter {
     /// Used to suppress transient `.unsatisfied` events immediately after installing routes (common on Wi‑Fi with kill-switch routes).
     private var lastNetworkSettingsUpdateAt: Date?
 
-    /// Tracks whether the tunnel has ever had a successful handshake during the lifetime of this adapter instance.
-    private var everHadHandshake = false
-
     /// Packet tunnel provider.
     private weak var packetTunnelProvider: NEPacketTunnelProvider?
 
@@ -452,7 +449,7 @@ public class WireGuardAdapter {
     private func didReceivePathUpdate(path: Network.NWPath) {
         self.logHandler(.verbose, "Network change detected with \(path.status) route and interface order \(path.availableInterfaces)")
         let lastUpdate = self.lastNetworkSettingsUpdateAt.map { String(describing: $0) } ?? "nil"
-        self.logHandler(.verbose, "Path update state: state=\(self.state) everHadHandshake=\(self.everHadHandshake) lastNetworkSettingsUpdateAt=\(lastUpdate)")
+        self.logHandler(.verbose, "Path update state: state=\(self.state) lastNetworkSettingsUpdateAt=\(lastUpdate)")
 
         #if os(macOS)
         if case .started(let handle, _) = self.state {
@@ -461,7 +458,6 @@ public class WireGuardAdapter {
         #elseif os(iOS)
         switch self.state {
         case .started(let handle, let settingsGenerator):
-            self.updateEverHadHandshake(handle: handle)
             if path.status.isSatisfiable {
                 let (wgConfig, resolutionResults) = settingsGenerator.endpointUapiConfiguration()
                 self.logEndpointResolutionResults(resolutionResults)
@@ -525,12 +521,11 @@ public class WireGuardAdapter {
 
     private func shouldPauseBackendOnUnsatisfiedPath(path: Network.NWPath) -> Bool {
         let hasPhysicalInterface = path.availableInterfaces.contains {
-            $0.type == .wifi || $0.type == .cellular
+            NetworkPathRetentionPolicy.isPhysicalInterfaceType($0.type)
         }
         return NetworkPathRetentionPolicy.shouldPauseBackend(
             hasSatisfiablePath: path.status.isSatisfiable,
             hasPhysicalInterface: hasPhysicalInterface,
-            everHadHandshake: self.everHadHandshake,
             lastNetworkSettingsUpdateAt: self.lastNetworkSettingsUpdateAt,
             now: Date(),
             gracePeriod: self.unsatisfiedGracePeriodAfterNetworkSettings
@@ -543,22 +538,6 @@ public class WireGuardAdapter {
         return max(0, self.unsatisfiedGracePeriodAfterNetworkSettings - elapsed)
     }
 
-    private func updateEverHadHandshake(handle: Int32) {
-        guard !self.everHadHandshake else { return }
-        guard let settings = wgGetConfig(handle) else { return }
-        let config = String(cString: settings)
-        free(settings)
-
-        for line in config.split(separator: "\n", omittingEmptySubsequences: true) {
-            guard line.hasPrefix("last_handshake_time_sec=") else { continue }
-            let valueString = String(line.dropFirst("last_handshake_time_sec=".count))
-            if let value = Int64(valueString), value > 0 {
-                self.everHadHandshake = true
-                self.logHandler(.verbose, "Observed first handshake at last_handshake_time_sec=\(value)")
-                break
-            }
-        }
-    }
 }
 
 /// A enum describing WireGuard log levels defined in `api-apple.go`.

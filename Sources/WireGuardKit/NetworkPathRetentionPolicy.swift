@@ -2,12 +2,12 @@
 // Copyright © 2026 WireGuard LLC. All Rights Reserved.
 
 import Foundation
+import Network
 
 enum NetworkPathRetentionPolicy {
     static func shouldPauseBackend(
         hasSatisfiablePath: Bool,
         hasPhysicalInterface: Bool,
-        everHadHandshake: Bool,
         lastNetworkSettingsUpdateAt: Date?,
         now: Date,
         gracePeriod: TimeInterval
@@ -26,6 +26,17 @@ enum NetworkPathRetentionPolicy {
             return false
         }
 
-        return everHadHandshake
+        return true
+    }
+
+    static func isPhysicalInterfaceType(_ type: NWInterface.InterfaceType) -> Bool {
+        switch type {
+        case .wifi, .cellular, .wiredEthernet:
+            return true
+        case .loopback, .other:
+            return false
+        @unknown default:
+            return false
+        }
     }
 }

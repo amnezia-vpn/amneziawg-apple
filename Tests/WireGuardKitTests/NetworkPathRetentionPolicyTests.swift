@@ -10,7 +10,6 @@ final class NetworkPathRetentionPolicyTests: XCTestCase {
             NetworkPathRetentionPolicy.shouldPauseBackend(
                 hasSatisfiablePath: false,
                 hasPhysicalInterface: true,
-                everHadHandshake: true,
                 lastNetworkSettingsUpdateAt: Date().addingTimeInterval(-60),
                 now: Date(),
                 gracePeriod: 12
@@ -23,7 +22,6 @@ final class NetworkPathRetentionPolicyTests: XCTestCase {
             NetworkPathRetentionPolicy.shouldPauseBackend(
                 hasSatisfiablePath: false,
                 hasPhysicalInterface: false,
-                everHadHandshake: true,
                 lastNetworkSettingsUpdateAt: Date().addingTimeInterval(-60),
                 now: Date(),
                 gracePeriod: 12
@@ -36,7 +34,6 @@ final class NetworkPathRetentionPolicyTests: XCTestCase {
             NetworkPathRetentionPolicy.shouldPauseBackend(
                 hasSatisfiablePath: false,
                 hasPhysicalInterface: false,
-                everHadHandshake: true,
                 lastNetworkSettingsUpdateAt: Date(),
                 now: Date(),
                 gracePeriod: 12
@@ -44,16 +41,19 @@ final class NetworkPathRetentionPolicyTests: XCTestCase {
         )
     }
 
-    func testKeepsBackendWithoutCompletedHandshake() {
-        XCTAssertFalse(
+    func testPausesBackendWithoutCompletedHandshakeAfterGracePeriod() {
+        XCTAssertTrue(
             NetworkPathRetentionPolicy.shouldPauseBackend(
                 hasSatisfiablePath: false,
                 hasPhysicalInterface: false,
-                everHadHandshake: false,
                 lastNetworkSettingsUpdateAt: Date().addingTimeInterval(-60),
                 now: Date(),
                 gracePeriod: 12
             )
         )
+    }
+
+    func testTreatsWiredEthernetAsPhysicalInterface() {
+        XCTAssertTrue(NetworkPathRetentionPolicy.isPhysicalInterfaceType(.wiredEthernet))
     }
 }
