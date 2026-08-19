@@ -102,6 +102,8 @@ extension TunnelConfiguration {
                         "rejectaftertime",
                         "keepalivetimeout",
                         "maxhandshakeattempts",
+                        "randomtrailers",
+                        "disablecookies",
                     ]
                     let peerSectionKeys: Set<String> = ["publickey", "presharedkey", "allowedips", "endpoint", "persistentkeepalive"]
                     if parserState == .inInterfaceSection {
