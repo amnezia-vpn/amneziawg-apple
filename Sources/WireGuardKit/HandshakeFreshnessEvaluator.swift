@@ -13,11 +13,15 @@ enum HandshakeFreshnessEvaluator {
     /// - Parameters:
     ///   - peers: The peer configurations returned from the WireGuard runtime.
     ///   - cutoffDate: The minimum acceptable handshake timestamp.
-    static func containsFreshHandshake(peers: [PeerConfiguration], cutoffDate: Date) -> Bool {
-        _ = cutoffDate
+    static func containsFreshHandshake(
+        peers: [PeerConfiguration], cutoffDate: Date, now: Date = Date()
+    ) -> Bool {
         let rxBytesThreshold: UInt64 = 4096
         return peers.contains { peer in
-            if peer.lastHandshakeTime != nil {
+            if let lastHandshakeTime = peer.lastHandshakeTime,
+                lastHandshakeTime >= cutoffDate,
+                lastHandshakeTime <= now
+            {
                 return true
             }
             // Fallback: if traffic is flowing, consider the tunnel alive even if handshake time is unavailable.
