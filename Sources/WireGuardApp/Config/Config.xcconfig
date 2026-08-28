@@ -1,2 +1,5 @@
 #include "Version.xcconfig"
-#include "Developer.xcconfig"
+#include? "Developer.xcconfig"
+
+APP_GROUP_IDENTIFIER=group.$(APP_ID_IOS)
+APP_GROUP_IDENTIFIER[sdk=macosx*]=$(DEVELOPMENT_TEAM).group.$(APP_ID_MACOS)

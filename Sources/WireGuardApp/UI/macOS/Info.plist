@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
@@ -27,7 +26,7 @@
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIconFile</key>
-	<string />
+	<string></string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -41,15 +40,15 @@
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<false />
+	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>LSMultipleInstancesProhibited</key>
-	<true />
+	<true/>
 	<key>LSUIElement</key>
-	<true />
+	<true/>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
 
@@ -77,6 +76,6 @@ Copyright © 2024 Amnezia. All Rights Reserved.</string>
 		</dict>
 	</array>
 	<key>com.wireguard.macos.app_group_id</key>
-	<string>$(DEVELOPMENT_TEAM).group.$(APP_ID_MACOS)</string>
+	<string>$(APP_GROUP_IDENTIFIER)</string>
 </dict>
 </plist>
