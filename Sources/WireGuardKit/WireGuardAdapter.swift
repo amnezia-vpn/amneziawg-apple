@@ -51,6 +51,23 @@ public class WireGuardAdapter {
     /// Tracks whether the tunnel has ever had a successful handshake during the lifetime of this adapter instance.
     private var everHadHandshake = false
 
+    // MARK: - Wedge watchdog (iOS cellular bearer-flap recovery)
+    // After an AT&T cellular bearer flap (EPS Fallback during a call, or plain network
+    // reselection) the carrier CGNAT drops the mapping for our UDP source port. wireguard-go's
+    // path-change handler (wgBumpSockets -> BindUpdate -> Open(netc.port)) REUSES the same local
+    // port, so packets keep hitting the dead mapping and the tunnel is black-holed until a FULL
+    // restart allocates a new source port. The existing handshake-freshness check lives in the app
+    // process (suspended while backgrounded) and only runs at activation, so it cannot recover this.
+    // This watchdog runs in the network extension (alive whenever the tunnel is up), detects the
+    // black-hole, and restarts the backend for a fresh source port -- what a manual toggle does.
+    private var wedgeWatchdogTimer: DispatchSourceTimer?
+    private var wedgeLastRxBytes: UInt64 = 0
+    private var wedgeLastTxBytes: UInt64 = 0
+    private var wedgeStrikes: Int = 0
+    private let wedgeTickSeconds: Int = 15
+    private let wedgeHandshakeStaleSeconds: TimeInterval = 60
+    private let wedgeStrikesToRestart: Int = 3   // ~45s of "sending, nothing back, handshake stale"
+
     /// Packet tunnel provider.
     private weak var packetTunnelProvider: NEPacketTunnelProvider?
 
@@ -238,6 +255,7 @@ public class WireGuardAdapter {
                 return
             }
 
+            self.stopWedgeWatchdog()
             self.networkMonitor?.cancel()
             self.networkMonitor = nil
 
@@ -401,6 +419,7 @@ public class WireGuardAdapter {
         #if os(iOS)
         wgDisableSomeRoamingForBrokenMobileSemantics(handle)
         #endif
+        self.startWedgeWatchdog()
         return handle
     }
 
@@ -545,6 +564,96 @@ public class WireGuardAdapter {
         guard let lastUpdateAt = self.lastNetworkSettingsUpdateAt else { return 0 }
         let elapsed = Date().timeIntervalSince(lastUpdateAt)
         return max(0, self.unsatisfiedGracePeriodAfterNetworkSettings - elapsed)
+    }
+
+    // MARK: - Wedge watchdog implementation
+
+    private func startWedgeWatchdog() {
+        #if os(iOS)
+        self.stopWedgeWatchdog()
+        self.wedgeLastRxBytes = 0
+        self.wedgeLastTxBytes = 0
+        self.wedgeStrikes = 0
+        let timer = DispatchSource.makeTimerSource(queue: self.workQueue)
+        timer.schedule(deadline: .now() + .seconds(self.wedgeTickSeconds),
+                       repeating: .seconds(self.wedgeTickSeconds))
+        timer.setEventHandler { [weak self] in self?.wedgeWatchdogTick() }
+        self.wedgeWatchdogTimer = timer
+        timer.resume()
+        self.logHandler(.verbose, "Wedge watchdog armed (tick=\(self.wedgeTickSeconds)s, restart after \(self.wedgeStrikesToRestart) strikes)")
+        #endif
+    }
+
+    private func stopWedgeWatchdog() {
+        self.wedgeWatchdogTimer?.cancel()
+        self.wedgeWatchdogTimer = nil
+    }
+
+    /// Runs on workQueue. A wedge looks like: transmitting (handshake retries / keepalives) but
+    /// receiving nothing, and the newest handshake has aged past when wireguard-go would refresh
+    /// it. A benign CGNAT re-map clears within seconds (rx resumes), so it never accumulates
+    /// enough strikes to trip a restart.
+    private func wedgeWatchdogTick() {
+        guard case .started(let handle, _) = self.state else { return }
+        guard self.everHadHandshake else { return }   // never police a tunnel that never worked
+        guard let settings = wgGetConfig(handle) else { return }
+
+        var newestHandshake: UInt64 = 0
+        var txTotal: UInt64 = 0
+        var rxTotal: UInt64 = 0
+        for line in settings.split(separator: "\n") {
+            if line.hasPrefix("last_handshake_time_sec=") {
+                let v = UInt64(line.dropFirst("last_handshake_time_sec=".count)) ?? 0
+                if v > newestHandshake { newestHandshake = v }
+            } else if line.hasPrefix("tx_bytes=") {
+                txTotal = txTotal &+ (UInt64(line.dropFirst("tx_bytes=".count)) ?? 0)
+            } else if line.hasPrefix("rx_bytes=") {
+                rxTotal = rxTotal &+ (UInt64(line.dropFirst("rx_bytes=".count)) ?? 0)
+            }
+        }
+
+        let now = UInt64(Date().timeIntervalSince1970)
+        let handshakeAge = newestHandshake == 0 ? Double.greatestFiniteMagnitude
+                                                : Double(now &- newestHandshake)
+        let txAdvanced = txTotal > self.wedgeLastTxBytes
+        let rxAdvanced = rxTotal > self.wedgeLastRxBytes
+        self.wedgeLastTxBytes = txTotal
+        self.wedgeLastRxBytes = rxTotal
+
+        if txAdvanced && !rxAdvanced && handshakeAge > self.wedgeHandshakeStaleSeconds {
+            self.wedgeStrikes += 1
+            self.logHandler(.verbose, "Wedge watchdog: strike \(self.wedgeStrikes)/\(self.wedgeStrikesToRestart) (handshakeAge=\(Int(handshakeAge))s, tx advancing, rx flat)")
+            if self.wedgeStrikes >= self.wedgeStrikesToRestart {
+                self.wedgeStrikes = 0
+                self.logHandler(.error, "Wedge watchdog: tunnel black-holed after a path change; restarting backend for a fresh UDP source port")
+                self.restartBackendForWedge(oldHandle: handle)
+            }
+        } else {
+            if self.wedgeStrikes != 0 {
+                self.logHandler(.verbose, "Wedge watchdog: recovered on its own (rxAdvanced=\(rxAdvanced), handshakeAge=\(Int(handshakeAge))s)")
+            }
+            self.wedgeStrikes = 0
+        }
+    }
+
+    /// Full backend restart == what a manual toggle does: a fresh wireguard-go device opens its
+    /// UDP socket with Open(0) => a new ephemeral source port => a new CGNAT mapping. Reuses the
+    /// existing utun fd and unchanged network settings; mirrors the temporaryShutdown resume path
+    /// already used in didReceivePathUpdate.
+    private func restartBackendForWedge(oldHandle: Int32) {
+        guard case .started(_, let settingsGenerator) = self.state else { return }
+        wgTurnOff(oldHandle)
+        do {
+            let (wgConfig, resolutionResults) = settingsGenerator.uapiConfiguration()
+            self.logEndpointResolutionResults(resolutionResults)
+            let newHandle = try self.startWireGuardBackend(wgConfig: wgConfig)
+            self.state = .started(newHandle, settingsGenerator)
+            self.wedgeLastTxBytes = 0
+            self.wedgeLastRxBytes = 0
+            self.logHandler(.verbose, "Wedge watchdog: backend restarted (new handle \(newHandle))")
+        } catch {
+            self.logHandler(.error, "Wedge watchdog: restart failed: \(error.localizedDescription); will retry next tick")
+        }
     }
 
     private func updateEverHadHandshake(handle: Int32) {
