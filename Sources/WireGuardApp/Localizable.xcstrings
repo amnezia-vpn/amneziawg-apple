@@ -3834,6 +3834,22 @@
         }
       }
     },
+    "alertInvalidPeerMessageExcludeIPsInvalid" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peer’s exclude IPs must be a list of comma-separated IP addresses, optionally in CIDR notation"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Исключённые IP-адреса пира должны быть списком IP-адресов через запятую, при необходимости в формате CIDR"
+          }
+        }
+      }
+    },
     "alertInvalidPeerMessagePersistentKeepaliveInvalid" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11728,6 +11744,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "端点 ”%@“ 无效"
+          }
+        }
+      }
+    },
+    "macAlertExcludeIPInvalid (%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invalid exclude IP: ‘%@’"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Некорректный исключённый IP: «%@»"
           }
         }
       }
@@ -29973,6 +30005,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Endpoint"
+          }
+        }
+      }
+    },
+    "tunnelPeerExcludeIPs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exclude IPs"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Исключённые IP"
           }
         }
       }
