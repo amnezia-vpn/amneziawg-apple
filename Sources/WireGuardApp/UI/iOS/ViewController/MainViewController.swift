@@ -122,6 +122,50 @@ extension MainViewController {
             onTunnelsManagerReady = importFromFileBlock
         }
     }
+
+    func importFromLink(url: URL) {
+        let importFromLinkBlock: (TunnelsManager) -> Void = { [weak self] tunnelsManager in
+            self?.presentImportLinkPrompt(url: url, tunnelsManager: tunnelsManager)
+        }
+        if let tunnelsManager = tunnelsManager {
+            importFromLinkBlock(tunnelsManager)
+        } else {
+            onTunnelsManagerReady = importFromLinkBlock
+        }
+    }
+
+    private func presentImportLinkPrompt(url: URL, tunnelsManager: TunnelsManager) {
+        var sourceVC: UIViewController = self
+        while let presentedVC = sourceVC.presentedViewController {
+            sourceVC = presentedVC
+        }
+
+        guard let tunnelConfiguration = TunnelImporter.tunnelConfiguration(fromImportLink: url) else {
+            ErrorPresenter.showErrorAlert(title: tr("alertImportLinkInvalidTitle"), message: tr("alertImportLinkInvalidMessage"), from: sourceVC)
+            return
+        }
+
+        let endpoints = tunnelConfiguration.peers.compactMap { $0.endpoint?.stringRepresentation }.joined(separator: ", ")
+        let alert = UIAlertController(title: tr("alertImportLinkPromptTitle"), message: tr(format: "alertImportLinkPromptMessage (%@)", endpoints), preferredStyle: .alert)
+        alert.addTextField { textField in
+            textField.text = tunnelConfiguration.name
+            textField.placeholder = tr("tunnelInterfaceName")
+        }
+        alert.addAction(UIAlertAction(title: tr("actionCancel"), style: .cancel))
+        alert.addAction(UIAlertAction(title: tr("actionSave"), style: .default) { [weak self] _ in
+            guard let name = alert.textFields?[0].text?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return }
+            tunnelConfiguration.name = name
+            tunnelsManager.add(tunnelConfiguration: tunnelConfiguration) { result in
+                switch result {
+                case .failure(let error):
+                    ErrorPresenter.showErrorAlert(error: error, from: self)
+                case .success(let tunnel):
+                    self?.tunnelsListVC?.showTunnelDetail(for: tunnel, animated: true)
+                }
+            }
+        })
+        sourceVC.present(alert, animated: true)
+    }
 }
 
 extension MainViewController: UISplitViewControllerDelegate {

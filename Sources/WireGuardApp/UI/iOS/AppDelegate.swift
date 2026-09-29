@@ -33,6 +33,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        if TunnelImporter.isImportLink(url) {
+            mainVC?.importFromLink(url: url)
+            return true
+        }
         mainVC?.importFromDisposableFile(url: url)
         return true
     }
