@@ -4,6 +4,32 @@
 import Foundation
 
 class TunnelImporter {
+    private static let importLinkScheme = "amneziawg"
+    private static let importLinkMaxConfigLength = 64 * 1024
+
+    static func isImportLink(_ url: URL) -> Bool {
+        return url.scheme?.lowercased() == importLinkScheme
+    }
+
+    static func tunnelConfiguration(fromImportLink url: URL) -> TunnelConfiguration? {
+        guard isImportLink(url), url.host?.lowercased() == "import",
+              let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+              let encodedConfig = queryItems.first(where: { $0.name == "config" })?.value,
+              encodedConfig.count <= importLinkMaxConfigLength else { return nil }
+
+        var base64 = encodedConfig
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+            .filter { !$0.isWhitespace }
+        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
+
+        guard let data = Data(base64Encoded: base64),
+              let config = String(data: data, encoding: .utf8) else { return nil }
+
+        let name = queryItems.first(where: { $0.name == "name" })?.value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try? TunnelConfiguration(fromWgQuickConfig: config, called: name)
+    }
+
     static func importFromFile(urls: [URL], into tunnelsManager: TunnelsManager, sourceVC: AnyObject?, errorPresenterType: ErrorPresenterProtocol.Type, completionHandler: (() -> Void)? = nil) {
         guard !urls.isEmpty else {
             completionHandler?()
