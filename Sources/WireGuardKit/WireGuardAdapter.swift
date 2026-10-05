@@ -596,7 +596,9 @@ public class WireGuardAdapter {
     private func wedgeWatchdogTick() {
         guard case .started(let handle, _) = self.state else { return }
         guard self.everHadHandshake else { return }   // never police a tunnel that never worked
-        guard let settings = wgGetConfig(handle) else { return }
+        guard let cSettings = wgGetConfig(handle) else { return }
+        let settings = String(cString: cSettings)
+        free(cSettings)
 
         var newestHandshake: UInt64 = 0
         var txTotal: UInt64 = 0
