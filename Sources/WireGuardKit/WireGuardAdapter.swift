@@ -24,6 +24,8 @@ public enum WireGuardAdapterError: Error {
 
     /// Failure to start WireGuard backend.
     case startWireGuardBackend(Int32)
+
+    case updateWireGuardBackend(Int64)
 }
 
 /// Enum representing internal state of the `WireGuardAdapter`
@@ -62,6 +64,7 @@ public class WireGuardAdapter {
 
     /// Adapter state.
     private var state: State = .stopped
+    private var routingStateKnown = true
 
     /// Tunnel device file descriptor.
     private var tunnelFileDescriptor: Int32? {
@@ -184,7 +187,7 @@ public class WireGuardAdapter {
     ///   - completionHandler: completion handler.
     public func start(tunnelConfiguration: TunnelConfiguration, completionHandler: @escaping (WireGuardAdapterError?) -> Void) {
         workQueue.async {
-            guard case .stopped = self.state else {
+            guard case .stopped = self.state, self.routingStateKnown else {
                 completionHandler(.invalidState)
                 return
             }
@@ -253,6 +256,10 @@ public class WireGuardAdapter {
     ///   - completionHandler: completion handler.
     public func update(tunnelConfiguration: TunnelConfiguration, completionHandler: @escaping (WireGuardAdapterError?) -> Void) {
         workQueue.async {
+            if !self.routingStateKnown {
+                completionHandler(.invalidState)
+                return
+            }
             if case .stopped = self.state {
                 completionHandler(.invalidState)
                 return
@@ -278,7 +285,11 @@ public class WireGuardAdapter {
                     let (wgConfig, resolutionResults) = settingsGenerator.uapiConfiguration()
                     self.logEndpointResolutionResults(resolutionResults)
 
-                    wgSetConfig(handle, wgConfig)
+                    let result = wgSetConfig(handle, wgConfig)
+                    guard result == 0 else {
+                        self.routingStateKnown = false
+                        throw WireGuardAdapterError.updateWireGuardBackend(result)
+                    }
                     #if os(iOS)
                     wgDisableSomeRoamingForBrokenMobileSemantics(handle)
                     #endif
@@ -301,6 +312,55 @@ public class WireGuardAdapter {
         }
     }
 
+    public func updateRouting(tunnelConfiguration: TunnelConfiguration,
+                              completionHandler: @escaping (WireGuardRoutingUpdateResult) -> Void) {
+        workQueue.async {
+            guard self.routingStateKnown else {
+                completionHandler(.stateUnknown)
+                return
+            }
+            guard case .started(let handle, let previousGenerator) = self.state,
+                  let plan = RoutingUpdatePlan(previous: previousGenerator.tunnelConfiguration,
+                                               requested: tunnelConfiguration) else {
+                completionHandler(.notApplied)
+                return
+            }
+            let matchesPeer = { (restoring: Bool) -> Bool in
+                guard let settings = wgGetConfig(handle) else { return false }
+                defer { free(settings) }
+                return plan.matchesRuntime(String(cString: settings), restoring: restoring)
+            }
+            guard matchesPeer(true) else {
+                self.routingStateKnown = false
+                completionHandler(.stateUnknown)
+                return
+            }
+            let generator = PacketTunnelSettingsGenerator(tunnelConfiguration: plan.requested,
+                                                           resolvedEndpoints: previousGenerator.resolvedEndpoints)
+            let operations = RoutingUpdateTransaction.Operations(
+                updatePeer: {
+                    return (!plan.changesPeer || wgSetConfig(handle, plan.peerConfiguration()) == 0) && matchesPeer(false)
+                },
+                applySettings: { self.applyNetworkSettings(generator.generateNetworkSettings()) },
+                restoreSettings: { self.applyNetworkSettings(previousGenerator.generateNetworkSettings()) },
+                restorePeer: {
+                    return (!plan.changesPeer || wgSetConfig(handle, plan.peerConfiguration(restoring: true)) == 0)
+                        && matchesPeer(true)
+                }
+            )
+            let result = RoutingUpdateTransaction.apply(operations)
+            switch result {
+            case .applied:
+                self.state = .started(handle, generator)
+            case .notApplied:
+                break
+            case .stateUnknown:
+                self.routingStateKnown = false
+            }
+            completionHandler(result)
+        }
+    }
+
     // MARK: - Private methods
 
     /// Setup WireGuard log handler.
@@ -319,41 +379,29 @@ public class WireGuardAdapter {
         }
     }
 
-    /// Set network tunnel configuration.
-    /// This method ensures that the call to `setTunnelNetworkSettings` does not time out, as in
-    /// certain scenarios the completion handler given to it may not be invoked by the system.
-    ///
-    /// - Parameters:
-    ///   - networkSettings: an instance of type `NEPacketTunnelNetworkSettings`.
-    /// - Throws: an error of type `WireGuardAdapterError`.
-    /// - Returns: `PacketTunnelSettingsGenerator`.
     private func setNetworkSettings(_ networkSettings: NEPacketTunnelNetworkSettings) throws {
-        self.logHandler(.verbose, "setNetworkSettings: applying")
-        var systemError: Error?
-        let condition = NSCondition()
-
-        // Activate the condition
-        condition.lock()
-        defer { condition.unlock() }
-
-        self.packetTunnelProvider?.setTunnelNetworkSettings(networkSettings) { error in
-            systemError = error
-            condition.signal()
+        switch applyNetworkSettings(networkSettings) {
+        case .applied:
+            return
+        case .rejected(let error):
+            throw WireGuardAdapterError.setNetworkSettings(error)
+        case .stateUnknown:
+            routingStateKnown = false
+            throw WireGuardAdapterError.setNetworkSettings(NSError(domain: "WireGuardKit.NetworkSettings", code: -1))
         }
+    }
 
-        // Packet tunnel's `setTunnelNetworkSettings` times out in certain
-        // scenarios & never calls the given callback.
-        let setTunnelNetworkSettingsTimeout: TimeInterval = 5 // seconds
-
-        if condition.wait(until: Date().addingTimeInterval(setTunnelNetworkSettingsTimeout)) {
-            if let systemError = systemError {
-                throw WireGuardAdapterError.setNetworkSettings(systemError)
-            }
-        } else {
-            self.logHandler(.error, "setTunnelNetworkSettings timed out after 5 seconds; proceeding anyway")
+    private func applyNetworkSettings(_ settings: NEPacketTunnelNetworkSettings) -> NetworkSettingsApplication {
+        guard let provider = packetTunnelProvider else {
+            return .rejected(NSError(domain: "WireGuardKit.Provider", code: -1))
         }
-
-        self.lastNetworkSettingsUpdateAt = Date()
+        let completion = NetworkSettingsCompletion()
+        provider.setTunnelNetworkSettings(settings) { completion.complete($0) }
+        let result = completion.wait(timeout: 5)
+        if case .applied = result {
+            lastNetworkSettingsUpdateAt = Date()
+        }
+        return result
     }
 
     /// Resolve peers of the given tunnel configuration.
@@ -450,6 +498,7 @@ public class WireGuardAdapter {
     /// Helper method used by network path monitor.
     /// - Parameter path: new network path
     private func didReceivePathUpdate(path: Network.NWPath) {
+        guard routingStateKnown else { return }
         self.logHandler(.verbose, "Network change detected with \(path.status) route and interface order \(path.availableInterfaces)")
         let lastUpdate = self.lastNetworkSettingsUpdateAt.map { String(describing: $0) } ?? "nil"
         self.logHandler(.verbose, "Path update state: state=\(self.state) everHadHandshake=\(self.everHadHandshake) lastNetworkSettingsUpdateAt=\(lastUpdate)")

@@ -115,6 +115,10 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 errorNotifier.notify(PacketTunnelProviderError.couldNotStartBackend)
                 completionHandler(PacketTunnelProviderError.couldNotStartBackend)
 
+            case .updateWireGuardBackend:
+                errorNotifier.notify(PacketTunnelProviderError.couldNotStartBackend)
+                completionHandler(PacketTunnelProviderError.couldNotStartBackend)
+
             case .invalidState:
                 // Must never happen
                 fatalError()
