@@ -37,7 +37,34 @@ extension DNSResolver {
         }
     }
 
-    private static func resolveSync(endpoint: Endpoint) throws -> Endpoint {
+    static func resolveSync(endpoint: Endpoint) throws -> Endpoint {
+        return try resolveSync(endpoint: endpoint, lookupSRV: SRVResolver.lookup, resolveAddress: resolveAddress)
+    }
+
+    /// Keep discovery separate from address resolution so failover can be tested without DNS.
+    static func resolveSync(endpoint: Endpoint,
+                            lookupSRV: (String) throws -> [SRVRecord],
+                            resolveAddress: (Endpoint) throws -> Endpoint) throws -> Endpoint {
+        guard let name = endpoint.srvRecordName else {
+            return try resolveAddress(endpoint)
+        }
+        let records = try lookupSRV(name)
+        guard !records.isEmpty, !records.contains(where: { $0.target == "." }) else {
+            throw DNSResolutionError(errorCode: EAI_NONAME, address: name)
+        }
+        var lastError = DNSResolutionError(errorCode: EAI_NONAME, address: name)
+        for record in SRVRecord.ordered(records) {
+            guard let port = NWEndpoint.Port(rawValue: record.port), record.port != 0 else { continue }
+            do {
+                return try resolveAddress(Endpoint(host: .name(record.target, nil), port: port))
+            } catch let error as DNSResolutionError {
+                lastError = error
+            }
+        }
+        throw lastError
+    }
+
+    private static func resolveAddress(endpoint: Endpoint) throws -> Endpoint {
         guard case .name(let name, _) = endpoint.host else {
             return endpoint
         }

@@ -44,6 +44,9 @@ public class WireGuardAdapter {
     /// Network routes monitor.
     private var networkMonitor: NWPathMonitor?
 
+    /// Poll only tunnels with explicitly configured DNS SRV endpoints.
+    private var srvRefreshTimer: DispatchSourceTimer?
+
     /// Timestamp of last applied `NEPacketTunnelNetworkSettings` update.
     /// Used to suppress transient `.unsatisfied` events immediately after installing routes (common on Wi‑Fi with kill-switch routes).
     private var lastNetworkSettingsUpdateAt: Date?
@@ -150,6 +153,7 @@ public class WireGuardAdapter {
 
         // Cancel network monitor
         networkMonitor?.cancel()
+        srvRefreshTimer?.cancel()
 
         // Shutdown the tunnel
         if case .started(let handle, _) = self.state {
@@ -211,6 +215,7 @@ public class WireGuardAdapter {
                     settingsGenerator
                 )
                 self.networkMonitor = networkMonitor
+                self.configureSRVRefreshTimer(for: settingsGenerator)
                 completionHandler(nil)
             } catch let error as WireGuardAdapterError {
                 networkMonitor.cancel()
@@ -240,6 +245,8 @@ public class WireGuardAdapter {
 
             self.networkMonitor?.cancel()
             self.networkMonitor = nil
+            self.srvRefreshTimer?.cancel()
+            self.srvRefreshTimer = nil
 
             self.state = .stopped
 
@@ -292,6 +299,7 @@ public class WireGuardAdapter {
                     fatalError()
                 }
 
+                self.configureSRVRefreshTimer(for: settingsGenerator)
                 completionHandler(nil)
             } catch let error as WireGuardAdapterError {
                 completionHandler(error)
@@ -302,6 +310,36 @@ public class WireGuardAdapter {
     }
 
     // MARK: - Private methods
+
+    private func configureSRVRefreshTimer(for settingsGenerator: PacketTunnelSettingsGenerator) {
+        srvRefreshTimer?.cancel()
+        srvRefreshTimer = nil
+        guard settingsGenerator.tunnelConfiguration.peers.contains(where: { $0.endpoint?.srvRecordName != nil }) else { return }
+        let timer = DispatchSource.makeTimerSource(queue: workQueue)
+        timer.schedule(deadline: .now() + 60, repeating: 60, leeway: .seconds(5))
+        timer.setEventHandler { [weak self] in self?.refreshSRVEndpoints() }
+        timer.resume()
+        srvRefreshTimer = timer
+    }
+
+    private func refreshSRVEndpoints() {
+        guard case .started(let handle, let generator) = state,
+              generator.tunnelConfiguration.peers.contains(where: { $0.endpoint?.srvRecordName != nil }) else { return }
+        let (configuration, results, endpoints) = generator.srvEndpointUapiConfiguration()
+        logEndpointResolutionResults(results)
+        guard !configuration.isEmpty else { return }
+        let updated = PacketTunnelSettingsGenerator(tunnelConfiguration: generator.tunnelConfiguration, resolvedEndpoints: endpoints)
+        let addressChanged = zip(generator.resolvedEndpoints, endpoints).contains { $0?.host != $1?.host }
+        do {
+            // A changed IP also needs an updated excluded route for full-tunnel configurations.
+            if addressChanged { try setNetworkSettings(updated.generateNetworkSettings()) }
+            wgSetConfig(handle, configuration)
+            state = .started(handle, updated)
+            logHandler(.verbose, "Updated DNS SRV endpoints")
+        } catch {
+            logHandler(.error, "Unable to apply DNS SRV endpoint routes: \(error)")
+        }
+    }
 
     /// Setup WireGuard log handler.
     private func setupLogHandler() {
@@ -513,6 +551,7 @@ public class WireGuardAdapter {
         #else
         #error("Unsupported")
         #endif
+        if path.status.isSatisfiable { refreshSRVEndpoints() }
     }
 
     // MARK: - iOS offline detection helpers

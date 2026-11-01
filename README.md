@@ -78,6 +78,51 @@ $ open WireGuard.xcodeproj
 Note that if you ship your app for both iOS and macOS, make sure to repeat the steps 2-4 twice, 
 once per platform.
 
+## DNS SRV endpoint discovery
+
+DNS SRV discovery is opt-in. A normal `Endpoint = vpn.example.com:51820` keeps
+its existing fixed-port behavior. To discover both the hostname and UDP port,
+use an explicit, fully qualified SRV owner name:
+
+```ini
+[Peer]
+PublicKey = <server public key>
+Endpoint = srv://_wireguard._udp.vpn.example.com
+AllowedIPs = 192.168.10.0/24
+```
+
+For example, publish these DNS records (the addresses are documentation examples):
+
+```dns
+_wireguard._udp.vpn.example.com. 300 IN SRV 10 10 9783 endpoint.example.com.
+endpoint.example.com.           300 IN A   192.0.2.1
+```
+
+The client uses the system DNS-SD resolver and then resolves the selected target's
+A/AAAA addresses using the existing address resolver. Lower numeric priorities
+are tried first; records of equal priority are selected by weight. A failed
+target address lookup tries the next record. A target of `.` means the service
+is unavailable. Missing or invalid SRV answers fail discovery rather than
+silently guessing a port. This does not add connection-level health checks or
+handshake-based failover between SRV targets.
+
+SRV endpoints are resolved at startup and refreshed on satisfied network-path
+updates and approximately every 60 seconds while the backend is running. System
+DNS caching and record TTLs still apply. A changed port updates the peer without
+restarting the tunnel; a changed IP also updates the tunnel's excluded routes.
+Transient refresh errors retain the last working endpoint. Unchanged DNS answers
+do not overwrite endpoint roaming learned by the backend. The configured SRV URL
+is preserved when exporting the tunnel.
+
+DNS must be reachable both before connecting and when refreshing. In particular,
+a DNS server reachable only through an already broken tunnel cannot bootstrap
+discovery. SRV only selects an endpoint: the configured WireGuard peer key still
+authenticates it, and the server must use compatible protocol settings. These
+SRV URLs are an app extension and are not understood by stock `wg-quick`.
+
+On macOS, `python3 Scripts/test-srv.py` runs the resolver/model unit tests without
+building the Go backend or requiring signing credentials.
+
 ## MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of

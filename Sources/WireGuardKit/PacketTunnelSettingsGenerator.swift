@@ -21,6 +21,39 @@ class PacketTunnelSettingsGenerator {
         self.resolvedEndpoints = resolvedEndpoints
     }
 
+    /// Refresh only explicitly opted-in peers, retaining cached endpoints on DNS errors.
+    /// Comparing with the last DNS result avoids undoing backend endpoint roaming on every poll.
+    func srvEndpointUapiConfiguration(
+        resolve: ([Endpoint?]) -> [Result<Endpoint, DNSResolutionError>?] = DNSResolver.resolveSync
+    ) -> (String, [EndpointResolutionResult?], [Endpoint?]) {
+        let requested = tunnelConfiguration.peers.map { peer -> Endpoint? in
+            guard peer.endpoint?.srvRecordName != nil else { return nil }
+            return peer.endpoint
+        }
+        let results = resolve(requested)
+        assert(results.count == resolvedEndpoints.count)
+        var endpoints = resolvedEndpoints
+        var configuration = ""
+        var resolutionResults = [EndpointResolutionResult?]()
+        for (index, result) in results.enumerated() {
+            guard let result = result, let original = requested[index] else {
+                resolutionResults.append(nil)
+                continue
+            }
+            let resolution = result.flatMap { endpoint in
+                Result { (original, try endpoint.withReresolvedIP()) }
+                    .mapError { $0 as! DNSResolutionError } // swiftlint:disable:this force_cast
+            }
+            resolutionResults.append(resolution)
+            if case .success((_, let endpoint)) = resolution, endpoint != endpoints[index] {
+                endpoints[index] = endpoint
+                configuration += "public_key=\(tunnelConfiguration.peers[index].publicKey.hexKey)\n"
+                configuration += "endpoint=\(endpoint.stringRepresentation)\n"
+            }
+        }
+        return (configuration, resolutionResults, endpoints)
+    }
+
     func endpointUapiConfiguration() -> (String, [EndpointResolutionResult?]) {
         var resolutionResults = [EndpointResolutionResult?]()
         var wgSettings = ""
