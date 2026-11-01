@@ -696,6 +696,10 @@ static void highlight_value(struct highlight_span_array *ret, const string_span_
 			append_highlight_span(ret, parent.s, s, HighlightError);
 			break;
 		}
+		if (s.len >= 6 && !memcmp(s.s, "srv://", 6)) {
+			append_highlight_span(ret, parent.s, s, HighlightHost);
+			break;
+		}
 		for (colon = s.len; colon --> 0;) {
 			if (s.s[colon] == ':')
 				break;

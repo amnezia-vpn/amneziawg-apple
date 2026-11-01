@@ -17,5 +17,12 @@ int main(void)
 		assert(is_valid_endpoint((string_span_t){ valid[i], strlen(valid[i]) }));
 	for (size_t i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
 		assert(!is_valid_endpoint((string_span_t){ invalid[i], strlen(invalid[i]) }));
+	struct highlight_span *spans = highlight_config("[Peer]\nEndpoint = srv://_wireguard._udp.vpn.example.com\n");
+	assert(spans);
+	for (size_t i = 0; spans[i].type != HighlightEnd; ++i) {
+		assert(spans[i].type != HighlightError);
+		assert(spans[i].type != HighlightPort);
+	}
+	free(spans);
 	return 0;
 }
