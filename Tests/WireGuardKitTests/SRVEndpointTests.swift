@@ -5,6 +5,19 @@ import Network
 @testable import WireGuardKit
 
 final class SRVEndpointTests: XCTestCase {
+    func testSystemResolverIntegrationWhenRequested() throws {
+        guard let name = ProcessInfo.processInfo.environment["AWG_SRV_INTEGRATION_NAME"], !name.isEmpty else {
+            throw XCTSkip("Set AWG_SRV_INTEGRATION_NAME to opt into a live system DNS-SD query")
+        }
+        let records = try SRVResolver.lookup(name)
+        XCTAssertFalse(records.isEmpty)
+        let endpoint = try XCTUnwrap(Endpoint(from: "srv://\(name)"))
+        let resolved = try DNSResolver.resolveSync(endpoint: endpoint)
+        XCTAssertTrue(resolved.hasHostAsIPAddress())
+        XCTAssertTrue(records.contains(where: { $0.port == resolved.port.rawValue }))
+        print("System SRV discovery resolved \(name) to \(resolved.stringRepresentation)")
+    }
+
     func testExplicitServiceEndpointRoundTrips() throws {
         for text in ["srv://_wireguard._udp.vpn.example.com", "srv://_awg._udp.vpn.example.com."] {
             let endpoint = try XCTUnwrap(Endpoint(from: text))

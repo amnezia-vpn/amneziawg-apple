@@ -3,6 +3,11 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      integration_record_name:
+        description: Optional UDP SRV owner name for a live system resolver smoke test
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
@@ -16,6 +21,8 @@ jobs:
           clang -Wall -Wextra Scripts/test-srv-highlighter.c -o "$RUNNER_TEMP/srv-highlighter-tests"
           "$RUNNER_TEMP/srv-highlighter-tests"
       - name: Test endpoint parsing and SRV resolution without the Go backend
+        env:
+          AWG_SRV_INTEGRATION_NAME: ${{ inputs.integration_record_name }}
         run: python3 Scripts/test-srv.py
       - name: Type-check the complete macOS adapter
         run: >-

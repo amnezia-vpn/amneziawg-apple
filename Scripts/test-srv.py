@@ -23,4 +23,4 @@ let package = Package(name: "SRVTests", platforms: [.macOS(.v12)], targets: [
     .testTarget(name: "WireGuardKitTests", dependencies: ["WireGuardKit"])
 ])
 ''')
-    subprocess.run(["swift", "test", "--package-path", str(package)], check=True)
+    subprocess.run(["swift", "test", "--package-path", str(package), "--filter", "SRVEndpointTests"], check=True)
