@@ -69,7 +69,7 @@ struct SRVRecord: Equatable {
 enum SRVResolver {
     private final class Query {
         var records = [SRVRecord]()
-        var error: DNSServiceErrorType = kDNSServiceErr_NoError
+        var error = DNSServiceErrorType(kDNSServiceErr_NoError)
         var finished = false
     }
 
