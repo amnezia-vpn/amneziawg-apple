@@ -308,6 +308,30 @@ static bool is_valid_endpoint(string_span_t s)
 
 	if (!s.len)
 		return false;
+	if (s.len >= 6 && !memcmp(s.s, "srv://", 6)) {
+		string_span_t name = { s.s + 6, s.len - 6 };
+		if (!name.len || name.len > (name.s[name.len - 1] == '.' ? 254U : 253U) || name.s[0] != '_')
+			return false;
+		size_t label = 0, start = 0;
+		for (size_t i = 0; i <= name.len; ++i) {
+			if (i == name.len || name.s[i] == '.') {
+				size_t length = i - start;
+				if (i == name.len && !length && start == name.len && label >= 3)
+					return true;
+				if (!length || length > 63 || (!label && length < 2))
+					return false;
+				if (label == 1 && (length != 4 || name.s[start] != '_' ||
+				    (name.s[start + 1] | 32) != 'u' || (name.s[start + 2] | 32) != 'd' ||
+				    (name.s[start + 3] | 32) != 'p'))
+					return false;
+				++label;
+				start = i + 1;
+			} else if (!is_alphabet(name.s[i]) && !is_decimal(name.s[i]) && name.s[i] != '-' && name.s[i] != '_') {
+				return false;
+			}
+		}
+		return label >= 3;
+	}
 
 	if (s.s[0] == '[') {
 		bool seen_scope = false;
@@ -670,6 +694,10 @@ static void highlight_value(struct highlight_span_array *ret, const string_span_
 
 		if (!is_valid_endpoint(s)) {
 			append_highlight_span(ret, parent.s, s, HighlightError);
+			break;
+		}
+		if (s.len >= 6 && !memcmp(s.s, "srv://", 6)) {
+			append_highlight_span(ret, parent.s, s, HighlightHost);
 			break;
 		}
 		for (colon = s.len; colon --> 0;) {

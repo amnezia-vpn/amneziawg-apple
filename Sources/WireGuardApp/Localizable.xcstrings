@@ -3733,7 +3733,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Peer’s endpoint must be of the form ‘host:port’ or ‘[host]:port’"
+            "value" : "Peer’s endpoint must be of the form ‘host:port’, ‘[host]:port’, or ‘srv://_service._udp.host’"
           }
         },
         "es" : {

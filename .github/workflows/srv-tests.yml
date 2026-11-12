@@ -1,0 +1,38 @@
+name: SRV endpoint tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      integration_record_name:
+        description: Optional UDP SRV owner name for a live system resolver smoke test
+        required: false
+        type: string
+permissions:
+  contents: read
+jobs:
+  apple-resolver:
+    runs-on: macos-14
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test editor endpoint highlighting
+        run: |
+          clang -Wall -Wextra Scripts/test-srv-highlighter.c -o "$RUNNER_TEMP/srv-highlighter-tests"
+          "$RUNNER_TEMP/srv-highlighter-tests"
+      - name: Test endpoint parsing and SRV resolution without the Go backend
+        env:
+          AWG_SRV_INTEGRATION_NAME: ${{ inputs.integration_record_name }}
+        run: python3 Scripts/test-srv.py
+      - name: Type-check the complete macOS adapter
+        run: >-
+          xcrun --sdk macosx swiftc -typecheck -swift-version 5 -D SWIFT_PACKAGE
+          -I Sources/WireGuardKitC -I Sources/WireGuardKitGo
+          Sources/WireGuardKit/*.swift
+      - name: Type-check the complete iOS adapter
+        run: >-
+          xcrun --sdk iphonesimulator swiftc -typecheck -swift-version 5 -D SWIFT_PACKAGE
+          -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)"
+          -target arm64-apple-ios15.0-simulator
+          -I Sources/WireGuardKitC -I Sources/WireGuardKitGo
+          Sources/WireGuardKit/*.swift

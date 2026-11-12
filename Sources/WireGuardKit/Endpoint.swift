@@ -7,16 +7,19 @@ import Network
 public struct Endpoint {
     public let host: NWEndpoint.Host
     public let port: NWEndpoint.Port
+    /// An explicitly selected DNS SRV owner name, rather than a host and fixed port.
+    public let srvRecordName: String?
 
     public init(host: NWEndpoint.Host, port: NWEndpoint.Port) {
         self.host = host
         self.port = port
+        self.srvRecordName = nil
     }
 }
 
 extension Endpoint: Equatable {
     public static func == (lhs: Endpoint, rhs: Endpoint) -> Bool {
-        return lhs.host == rhs.host && lhs.port == rhs.port
+        return lhs.host == rhs.host && lhs.port == rhs.port && lhs.srvRecordName == rhs.srvRecordName
     }
 }
 
@@ -24,11 +27,15 @@ extension Endpoint: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(host)
         hasher.combine(port)
+        hasher.combine(srvRecordName)
     }
 }
 
 extension Endpoint {
     public var stringRepresentation: String {
+        if let srvRecordName = srvRecordName {
+            return "srv://\(srvRecordName)"
+        }
         switch host {
         case .name(let hostname, _):
             return "\(hostname):\(port)"
@@ -45,6 +52,27 @@ extension Endpoint {
         // Separation of host and port is based on 'parse_endpoint' function in
         // https://git.zx2c4.com/wireguard-tools/tree/src/config.c
         guard !string.isEmpty else { return nil }
+        if string.hasPrefix("srv://") {
+            let name = String(string.dropFirst("srv://".count))
+            let labels = name.split(separator: ".", omittingEmptySubsequences: false)
+            let significantLabels = name.hasSuffix(".") ? labels.dropLast() : labels[...]
+            // A UDP service name is explicit: no implicit service, URL port or path.
+            guard name.utf8.count <= (name.hasSuffix(".") ? 254 : 253),
+                  significantLabels.count >= 3,
+                  significantLabels[0].hasPrefix("_"), significantLabels[0].count > 1,
+                  significantLabels[1].lowercased() == "_udp",
+                  significantLabels.allSatisfy({ label in
+                      !label.isEmpty && label.utf8.count <= 63 && label.utf8.allSatisfy {
+                          (65...90).contains($0) || (97...122).contains($0) ||
+                          (48...57).contains($0) || $0 == 45 || $0 == 95
+                      }
+                  }) else { return nil }
+            self.host = .name(name, nil)
+            // Only the resolved endpoint's port is ever sent to the backend.
+            self.port = .any
+            self.srvRecordName = name
+            return
+        }
         let startOfPort: String.Index
         let hostString: String
         if string.first! == "[" {
@@ -69,6 +97,7 @@ extension Endpoint {
         guard invalidCharacterIndex == nil else { return nil }
         host = NWEndpoint.Host(hostString)
         port = endpointPort
+        srvRecordName = nil
     }
 }
 
