@@ -92,6 +92,7 @@ class TunnelViewModel {
         case endpoint
         case persistentKeepAlive
         case allowedIPs
+        case excludeIPs
         case rxBytes
         case txBytes
         case lastHandshakeTime
@@ -105,6 +106,7 @@ class TunnelViewModel {
             case .endpoint: return tr("tunnelPeerEndpoint")
             case .persistentKeepAlive: return tr("tunnelPeerPersistentKeepalive")
             case .allowedIPs: return tr("tunnelPeerAllowedIPs")
+            case .excludeIPs: return tr("tunnelPeerExcludeIPs")
             case .rxBytes: return tr("tunnelPeerRxBytes")
             case .txBytes: return tr("tunnelPeerTxBytes")
             case .lastHandshakeTime: return tr("tunnelPeerLastHandshakeTime")
@@ -605,6 +607,9 @@ class TunnelViewModel {
             if !config.allowedIPs.isEmpty {
                 scratchpad[.allowedIPs] = config.allowedIPs.map { $0.stringRepresentation }.joined(separator: ", ")
             }
+            if !config.excludeIPs.isEmpty {
+                scratchpad[.excludeIPs] = config.excludeIPs.map { $0.stringRepresentation }.joined(separator: ", ")
+            }
             if let endpoint = config.endpoint {
                 scratchpad[.endpoint] = endpoint.stringRepresentation
             }
@@ -657,6 +662,18 @@ class TunnelViewModel {
                     }
                 }
                 config.allowedIPs = allowedIPs
+            }
+            if let excludeIPsString = scratchpad[.excludeIPs] {
+                var excludeIPs = [IPAddressRange]()
+                for excludeIPString in excludeIPsString.splitToArray(trimmingCharacters: .whitespacesAndNewlines) {
+                    if let excludeIP = IPAddressRange(from: excludeIPString) {
+                        excludeIPs.append(excludeIP)
+                    } else {
+                        fieldsWithError.insert(.excludeIPs)
+                        errorMessages.append(tr("alertInvalidPeerMessageExcludeIPsInvalid"))
+                    }
+                }
+                config.excludeIPs = excludeIPs
             }
             if let endpointString = scratchpad[.endpoint] {
                 if let endpoint = Endpoint(from: endpointString) {

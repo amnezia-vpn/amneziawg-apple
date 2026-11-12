@@ -32,6 +32,29 @@ $ open WireGuard.xcodeproj
 
 - Flip switches, press buttons, and make whirling noises until Xcode builds it.
 
+## Configuration keys specific to AmneziaWG
+
+Besides the standard wg-quick keys and the AmneziaWG obfuscation parameters (`Jc`, `Jmin`, `Jmax`,
+`S1`–`S4`, `H1`–`H4`, `I1`–`I5`, …), the `[Peer]` section accepts:
+
+- `ExcludeIPs` — a comma-separated list of IP addresses or networks (IPv4 or IPv6) that must stay
+  **outside** the tunnel even though they are covered by `AllowedIPs`. They are installed as excluded
+  routes of the tunnel interface, so the system keeps a default route through the VPN while the listed
+  destinations go through the underlying network. Typical use: a full tunnel (`AllowedIPs = 0.0.0.0/0`)
+  with a few services that reject VPN or data-center addresses, without expanding `AllowedIPs` into
+  hundreds of complementary prefixes:
+
+  ```
+  [Peer]
+  PublicKey = …
+  AllowedIPs = 0.0.0.0/0
+  ExcludeIPs = 213.59.252.0/22, 194.190.12.0/24
+  Endpoint = vpn.example.com:51820
+  ```
+
+  The key is preserved by the built-in editors and by import/export. It is not part of the WireGuard
+  protocol and is never sent to the peer.
+
 ## WireGuardKit integration
 
 1. Open your Xcode project and add the Swift package with the following URL:

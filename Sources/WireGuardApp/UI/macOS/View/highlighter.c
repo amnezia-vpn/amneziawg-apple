@@ -414,6 +414,7 @@ enum field {
 	PublicKey,
 	PresharedKey,
 	AllowedIPs,
+	ExcludeIPs,
 	Endpoint,
 	PersistentKeepalive,
 
@@ -465,6 +466,7 @@ static enum field get_field(string_span_t s)
 	check_enum(PublicKey);
 	check_enum(PresharedKey);
 	check_enum(AllowedIPs);
+	check_enum(ExcludeIPs);
 	check_enum(Endpoint);
 	check_enum(PersistentKeepalive);
 #ifndef MOBILE_WGQUICK_SUBSET
@@ -538,7 +540,8 @@ static void highlight_multivalue_value(struct highlight_span_array *ret, const s
 			append_highlight_span(ret, parent.s, s, HighlightError);
 		break;
 	case Address:
-	case AllowedIPs: {
+	case AllowedIPs:
+	case ExcludeIPs: {
 		size_t slash;
 
 		if (!is_valid_network(s)) {
@@ -684,6 +687,7 @@ static void highlight_value(struct highlight_span_array *ret, const string_span_
 	case Address:
 	case DNS:
 	case AllowedIPs:
+	case ExcludeIPs:
 		highlight_multivalue(ret, parent, s, section);
 		break;
 	default:

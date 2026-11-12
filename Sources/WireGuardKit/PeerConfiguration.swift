@@ -7,6 +7,8 @@ public struct PeerConfiguration {
     public var publicKey: PublicKey
     public var preSharedKey: PreSharedKey?
     public var allowedIPs = [IPAddressRange]()
+    /// Destinations that stay outside the tunnel even when covered by `allowedIPs`
+    /// (installed as excluded routes on the tunnel interface; `ExcludeIPs` in wg-quick config).
     public var excludeIPs = [IPAddressRange]()
     public var endpoint: Endpoint?
     /// A single value ("22") or a range ("22-30"), per AmneziaWG 3+ `PersistentKeepalive`.
@@ -25,6 +27,7 @@ extension PeerConfiguration: Equatable {
         return lhs.publicKey == rhs.publicKey &&
             lhs.preSharedKey == rhs.preSharedKey &&
             Set(lhs.allowedIPs) == Set(rhs.allowedIPs) &&
+            Set(lhs.excludeIPs) == Set(rhs.excludeIPs) &&
             lhs.endpoint == rhs.endpoint &&
             lhs.persistentKeepAlive == rhs.persistentKeepAlive
     }
@@ -35,6 +38,7 @@ extension PeerConfiguration: Hashable {
         hasher.combine(publicKey)
         hasher.combine(preSharedKey)
         hasher.combine(Set(allowedIPs))
+        hasher.combine(Set(excludeIPs))
         hasher.combine(endpoint)
         hasher.combine(persistentKeepAlive)
 
