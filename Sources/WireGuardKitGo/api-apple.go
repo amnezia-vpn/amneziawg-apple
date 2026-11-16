@@ -24,10 +24,10 @@ import (
 	"time"
 	"unsafe"
 
-	"golang.org/x/sys/unix"
 	"github.com/amnezia-vpn/amneziawg-go/v3/conn"
 	"github.com/amnezia-vpn/amneziawg-go/v3/device"
 	"github.com/amnezia-vpn/amneziawg-go/v3/tun"
+	"golang.org/x/sys/unix"
 )
 
 var loggerFunc unsafe.Pointer
@@ -145,11 +145,15 @@ func wgTurnOff(tunnelHandle int32) {
 
 //export wgSetConfig
 func wgSetConfig(tunnelHandle int32, settings *C.char) int64 {
+	return setConfig(tunnelHandle, C.GoString(settings))
+}
+
+func setConfig(tunnelHandle int32, settings string) int64 {
 	dev, ok := tunnelHandles[tunnelHandle]
 	if !ok {
-		return 0
+		return -int64(unix.EBADF)
 	}
-	err := dev.IpcSet(C.GoString(settings))
+	err := dev.IpcSet(settings)
 	if err != nil {
 		dev.Errorf("Unable to set IPC settings: %v", err)
 		if ipcErr, ok := err.(*device.IPCError); ok {
