@@ -185,6 +185,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         onAppDeactivation?()
         onAppDeactivation = nil
     }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows {
+            showManageTunnelsWindow(completion: nil)
+        }
+        return true
+    }
 }
 
 extension AppDelegate {
