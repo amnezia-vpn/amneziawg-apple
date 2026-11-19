@@ -10,6 +10,12 @@ static inline void libxray_invokesockcallback(libxray_sockcallback cb, uintptr_t
 	cb(fd, ctx);
 }
 
+typedef void (*libxray_logcallback)(const char* msg, void* ctx);
+static inline void libxray_invokelogcallback(libxray_logcallback cb, const char* msg, void* ctx)
+{
+	cb(msg, ctx);
+}
+
 */
 import "C"
 import (
@@ -18,6 +24,8 @@ import (
 
 	"github.com/amnezia-vpn/amnezia-libxray/nodep"
 	"github.com/amnezia-vpn/amnezia-libxray/xray"
+	applog "github.com/xtls/xray-core/app/log"
+	clog "github.com/xtls/xray-core/common/log"
 	"github.com/xtls/xray-core/transport/internet"
 )
 
@@ -118,6 +126,39 @@ func LibXraySetSockCallback(cb C.libxray_sockcallback, ctx unsafe.Pointer) *C.ch
 			C.libxray_invokesockcallback(cb, C.uintptr_t(fd), ctx)
 		})
 		return nil
+	})
+
+	if err != nil {
+		return C.CString(err.Error())
+	}
+	return nil
+}
+
+type logCallbackWriter struct {
+	cb  C.libxray_logcallback
+	ctx unsafe.Pointer
+}
+
+func (w *logCallbackWriter) Write(msg string) error {
+	cMsg := C.CString(msg)
+	defer C.free(unsafe.Pointer(cMsg))
+	C.libxray_invokelogcallback(w.cb, cMsg, w.ctx)
+	return nil
+}
+
+func (w *logCallbackWriter) Close() error {
+	return nil
+}
+
+// Redirect xray console logs (error and access) to the callback.
+// Must be called before LibXrayRunXray.
+//
+//export LibXraySetLogCallback
+func LibXraySetLogCallback(cb C.libxray_logcallback, ctx unsafe.Pointer) *C.char {
+	err := applog.RegisterHandlerCreator(applog.LogType_Console, func(applog.LogType, applog.HandlerCreatorOptions) (clog.Handler, error) {
+		return clog.NewLogger(func() clog.Writer {
+			return &logCallbackWriter{cb: cb, ctx: ctx}
+		}), nil
 	})
 
 	if err != nil {

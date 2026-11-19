@@ -32,4 +32,7 @@ extern char *LibXrayStopXray();
 extern char *LibXrayXrayVersion();
 extern char* LibXraySetSockCallback(libxray_sockcallback cb, void* ctx);
 
+typedef void (*libxray_logcallback)(const char* msg, void* ctx);
+extern char* LibXraySetLogCallback(libxray_logcallback cb, void* ctx);
+
 #endif
