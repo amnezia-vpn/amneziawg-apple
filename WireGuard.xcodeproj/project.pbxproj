@@ -1774,7 +1774,6 @@
 				SWIFT_PRECOMPILE_BRIDGING_HEADER = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				WIREGUARD_GO_VERSION = 0.2.1;
 			};
 			name = Debug;
 		};
@@ -1841,7 +1840,6 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
-				WIREGUARD_GO_VERSION = 0.2.1;
 			};
 			name = Release;
 		};
