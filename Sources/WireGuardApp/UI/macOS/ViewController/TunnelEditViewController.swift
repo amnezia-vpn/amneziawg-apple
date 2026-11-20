@@ -2,6 +2,7 @@
 // Copyright © 2018-2023 WireGuard LLC. All Rights Reserved.
 
 import Cocoa
+import NetworkExtension
 
 protocol TunnelEditViewControllerDelegate: AnyObject {
     func tunnelSaved(tunnel: TunnelContainer)
@@ -20,6 +21,13 @@ class TunnelEditViewController: NSViewController {
         let publicKeyRow = KeyValueRow()
         publicKeyRow.key = tr(format: "macFieldKey (%@)", TunnelViewModel.InterfaceField.publicKey.localizedUIString)
         return publicKeyRow
+    }()
+
+    let bypassHostnamesRow: EditableKeyValueRow = {
+        let row = EditableKeyValueRow()
+        row.key = tr(format: "macFieldKey (%@)", tr("macBypassHostnames"))
+        row.valueLabel.setAccessibilityTitleUIElement(row.keyLabel)
+        return row
     }()
 
     let textView: ConfTextView = {
@@ -84,6 +92,14 @@ class TunnelEditViewController: NSViewController {
 
     weak var delegate: TunnelEditViewControllerDelegate?
 
+    private enum SaveState {
+        case editing
+        case saving
+        case saved
+    }
+
+    private var saveState: SaveState = .editing
+
     var privateKeyObservationToken: AnyObject?
     var hasErrorObservationToken: AnyObject?
     var singlePeerAllowedIPsObservationToken: AnyObject?
@@ -106,6 +122,7 @@ class TunnelEditViewController: NSViewController {
             // Editing an existing tunnel
             let tunnelConfiguration = tunnel.tunnelConfiguration!
             nameRow.value = tunnel.name
+            bypassHostnamesRow.value = tunnel.bypassHostnames.joined(separator: ", ")
             textView.string = tunnelConfiguration.asWgQuickConfig()
             publicKeyRow.value = tunnelConfiguration.interface.privateKey.publicKey.base64Key
             textView.privateKeyString = tunnelConfiguration.interface.privateKey.base64Key
@@ -129,8 +146,9 @@ class TunnelEditViewController: NSViewController {
                 publicKeyRow?.value = ""
             }
         }
-        hasErrorObservationToken = textView.observe(\.hasError) { [weak saveButton] textView, _ in
-            saveButton?.isEnabled = !textView.hasError
+        hasErrorObservationToken = textView.observe(\.hasError) { [weak self] textView, _ in
+            guard let self = self else { return }
+            self.saveButton.isEnabled = self.saveState == .editing && !textView.hasError
         }
         singlePeerAllowedIPsObservationToken = textView.observe(\.singlePeerAllowedIPs) { [weak self] textView, _ in
             self?.updateExcludePrivateIPsVisibility(singlePeerAllowedIPs: textView.singlePeerAllowedIPs)
@@ -156,7 +174,8 @@ class TunnelEditViewController: NSViewController {
         let margin: CGFloat = 20
         let internalSpacing: CGFloat = 10
 
-        let editorStackView = NSStackView(views: [nameRow, publicKeyRow, onDemandControlsRow, scrollView])
+        let bypassHelp = NSTextField(wrappingLabelWithString: tr("macBypassHostnamesHelp"))
+        let editorStackView = NSStackView(views: [nameRow, publicKeyRow, onDemandControlsRow, bypassHostnamesRow, bypassHelp, scrollView])
         editorStackView.orientation = .vertical
         editorStackView.setHuggingPriority(.defaultHigh, for: .horizontal)
         editorStackView.spacing = internalSpacing
@@ -182,14 +201,20 @@ class TunnelEditViewController: NSViewController {
         self.view = containerView
     }
 
-    func setUserInteractionEnabled(_ enabled: Bool) {
-        view.window?.ignoresMouseEvents = !enabled
-        nameRow.valueLabel.isEditable = enabled
-        textView.isEditable = enabled
-        onDemandControlsRow.onDemandSSIDsField.isEnabled = enabled
+    private func setSaveState(_ state: SaveState) {
+        saveState = state
+        let isEditing = state == .editing
+        view.window?.ignoresMouseEvents = state == .saving
+        nameRow.valueLabel.isEditable = isEditing
+        bypassHostnamesRow.valueLabel.isEditable = isEditing
+        textView.isEditable = isEditing
+        onDemandControlsRow.onDemandSSIDsField.isEnabled = isEditing
+        saveButton.isEnabled = isEditing && !textView.hasError
+        discardButton.isEnabled = isEditing
     }
 
     @objc func handleSaveAction() {
+        guard saveState == .editing else { return }
         let name = nameRow.value
         guard !name.isEmpty else {
             ErrorPresenter.showErrorAlert(title: tr("macAlertNameIsEmpty"), message: "", from: self)
@@ -229,37 +254,64 @@ class TunnelEditViewController: NSViewController {
             }
         }
 
-        setUserInteractionEnabled(false)
+        let bypassHostnames: [String]
+        do {
+            bypassHostnames = try NETunnelProviderProtocol.normalizeBypassHostnames(
+                bypassHostnamesRow.value.components(separatedBy: ","))
+        } catch {
+            ErrorPresenter.showErrorAlert(error: PacketTunnelProviderError.invalidBypassHostnames, from: self)
+            return
+        }
+
+        setSaveState(.saving)
 
         if let tunnel = tunnel {
             // We're modifying an existing tunnel
-            tunnelsManager.modify(tunnel: tunnel, tunnelConfiguration: tunnelConfiguration, onDemandOption: onDemandOption) { [weak self] error in
+            tunnelsManager.modify(tunnel: tunnel, tunnelConfiguration: tunnelConfiguration, onDemandOption: onDemandOption,
+                                  bypassHostnames: bypassHostnames) { [weak self] error in
                 guard let self = self else { return }
-                self.setUserInteractionEnabled(true)
                 if let error = error {
-                    ErrorPresenter.showErrorAlert(error: error, from: self)
+                    if case .savedButOnDemandReloadFailed = error {
+                        self.view.window?.ignoresMouseEvents = false
+                        self.presentSaveAlert(error, onDismissal: { [weak self] in
+                            self?.finishSave(tunnel)
+                        })
+                    } else {
+                        self.setSaveState(.editing)
+                        self.presentSaveAlert(error)
+                    }
                     return
                 }
-                self.delegate?.tunnelSaved(tunnel: tunnel)
-                self.presentingViewController?.dismiss(self)
+                self.finishSave(tunnel)
             }
         } else {
             // We're creating a new tunnel
-            self.tunnelsManager.add(tunnelConfiguration: tunnelConfiguration, onDemandOption: onDemandOption) { [weak self] result in
+            self.tunnelsManager.add(tunnelConfiguration: tunnelConfiguration, onDemandOption: onDemandOption,
+                                    bypassHostnames: bypassHostnames) { [weak self] result in
                 guard let self = self else { return }
-                self.setUserInteractionEnabled(true)
                 switch result {
                 case .failure(let error):
-                    ErrorPresenter.showErrorAlert(error: error, from: self)
+                    self.setSaveState(.editing)
+                    self.presentSaveAlert(error)
                 case .success(let tunnel):
-                    self.delegate?.tunnelSaved(tunnel: tunnel)
-                    self.presentingViewController?.dismiss(self)
+                    self.finishSave(tunnel)
                 }
             }
         }
     }
 
+    private func finishSave(_ tunnel: TunnelContainer) {
+        setSaveState(.saved)
+        delegate?.tunnelSaved(tunnel: tunnel)
+        presentingViewController?.dismiss(self)
+    }
+
+    func presentSaveAlert(_ error: TunnelsManagerError, onDismissal: (() -> Void)? = nil) {
+        ErrorPresenter.showErrorAlert(error: error, from: self, onDismissal: onDismissal)
+    }
+
     @objc func handleDiscardAction() {
+        guard saveState == .editing else { return }
         delegate?.tunnelEditingCancelled()
         presentingViewController?.dismiss(self)
     }

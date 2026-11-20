@@ -183,6 +183,18 @@ public class WireGuardAdapter {
     ///   - tunnelConfiguration: tunnel configuration.
     ///   - completionHandler: completion handler.
     public func start(tunnelConfiguration: TunnelConfiguration, completionHandler: @escaping (WireGuardAdapterError?) -> Void) {
+        start(tunnelConfiguration: tunnelConfiguration, bypassActivation: nil, completionHandler: completionHandler)
+    }
+
+    #if os(macOS)
+    func startWithHostnameBypass(tunnelConfiguration: TunnelConfiguration, activation: HostnameBypassActivation,
+                                 completionHandler: @escaping (WireGuardAdapterError?) -> Void) {
+        start(tunnelConfiguration: tunnelConfiguration, bypassActivation: activation, completionHandler: completionHandler)
+    }
+    #endif
+
+    private func start(tunnelConfiguration: TunnelConfiguration, bypassActivation: HostnameBypassActivation?,
+                       completionHandler: @escaping (WireGuardAdapterError?) -> Void) {
         workQueue.async {
             guard case .stopped = self.state else {
                 completionHandler(.invalidState)
@@ -196,20 +208,29 @@ public class WireGuardAdapter {
             networkMonitor.start(queue: self.workQueue)
 
             do {
+                if bypassActivation?.isCancelled == true {
+                    throw WireGuardAdapterError.setNetworkSettings(POSIXError(.ECANCELED))
+                }
                 self.logHandler(.verbose, "Adapter start requested")
                 let settingsGenerator = try self.makeSettingsGenerator(with: tunnelConfiguration)
                 let networkSettings = settingsGenerator.generateNetworkSettings()
                 self.logResolvedEndpoints(settingsGenerator.resolvedEndpoints, context: "start")
                 self.logNetworkSettingsSummary(networkSettings, context: "start")
-                try self.setNetworkSettings(networkSettings)
+                if let bypassActivation = bypassActivation {
+                    try bypassActivation.confirmNetworkSettings { reply in
+                        self.packetTunnelProvider?.setTunnelNetworkSettings(networkSettings, completionHandler: reply)
+                    }
+                    self.lastNetworkSettingsUpdateAt = Date()
+                } else {
+                    try self.setNetworkSettings(networkSettings)
+                }
 
                 let (wgConfig, resolutionResults) = settingsGenerator.uapiConfiguration()
                 self.logEndpointResolutionResults(resolutionResults)
 
-                self.state = .started(
-                    try self.startWireGuardBackend(wgConfig: wgConfig),
-                    settingsGenerator
-                )
+                let startBackend = { try self.startWireGuardBackend(wgConfig: wgConfig) }
+                let handle = try bypassActivation?.startBackend(startBackend) ?? startBackend()
+                self.state = .started(handle, settingsGenerator)
                 self.networkMonitor = networkMonitor
                 completionHandler(nil)
             } catch let error as WireGuardAdapterError {
@@ -354,6 +375,71 @@ public class WireGuardAdapter {
         }
 
         self.lastNetworkSettingsUpdateAt = Date()
+    }
+
+    // One per hostname-bypass start. Stop can cancel and wake the wait without
+    // entering the adapter queue; a late callback only sees this attempt.
+    final class HostnameBypassActivation {
+        private let lock = NSLock()
+        private let settingsReady = DispatchSemaphore(value: 0)
+        private var cancelled = false
+        private var isWaiting = false
+        private var acknowledgement: Result<Void, Error>?
+
+        var isCancelled: Bool { lock.withLock { cancelled } }
+
+        func cancel() {
+            lock.withLock {
+                cancelled = true
+                if isWaiting {
+                    isWaiting = false
+                    settingsReady.signal()
+                }
+            }
+        }
+
+        func confirmNetworkSettings(timeout: DispatchTimeInterval = .seconds(5),
+                                    apply: (@escaping (Error?) -> Void) -> Void) throws {
+            let deadline = DispatchTime.now() + timeout
+            try lock.withLock {
+                try checkCancellation()
+                isWaiting = true
+            }
+            apply { [weak self] error in
+                guard let self = self else { return }
+                self.lock.withLock {
+                    guard self.isWaiting, DispatchTime.now() < deadline else { return }
+                    self.isWaiting = false
+                    self.acknowledgement = error.map { .failure($0) } ?? .success(())
+                    self.settingsReady.signal()
+                }
+            }
+
+            _ = settingsReady.wait(timeout: deadline)
+            try lock.withLock {
+                isWaiting = false
+                try checkCancellation()
+                guard let acknowledgement = acknowledgement else {
+                    throw WireGuardAdapterError.setNetworkSettings(POSIXError(.ETIMEDOUT))
+                }
+                if case .failure(let error) = acknowledgement {
+                    throw WireGuardAdapterError.setNetworkSettings(error)
+                }
+            }
+        }
+
+        func startBackend(_ start: () throws -> Int32) throws -> Int32 {
+            try lock.withLock {
+                try checkCancellation()
+                return try start()
+            }
+        }
+
+        private func checkCancellation() throws {
+            if cancelled {
+                throw WireGuardAdapterError.setNetworkSettings(POSIXError(.ECANCELED))
+            }
+        }
     }
 
     /// Resolve peers of the given tunnel configuration.

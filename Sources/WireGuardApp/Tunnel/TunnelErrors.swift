@@ -11,6 +11,10 @@ enum TunnelsManagerError: WireGuardAppError {
     case systemErrorOnAddTunnel(systemError: Error)
     case systemErrorOnModifyTunnel(systemError: Error)
     case systemErrorOnRemoveTunnel(systemError: Error)
+    #if os(macOS)
+    case invalidBypassPolicy(PacketTunnelProviderError)
+    case savedButOnDemandReloadFailed(systemError: Error)
+    #endif
 
     var alertText: AlertText {
         switch self {
@@ -26,6 +30,12 @@ enum TunnelsManagerError: WireGuardAppError {
             return (tr("alertSystemErrorOnModifyTunnelTitle"), systemError.localizedUIString)
         case .systemErrorOnRemoveTunnel(let systemError):
             return (tr("alertSystemErrorOnRemoveTunnelTitle"), systemError.localizedUIString)
+        #if os(macOS)
+        case .invalidBypassPolicy(let error):
+            return error.alertText
+        case .savedButOnDemandReloadFailed(let systemError):
+            return (tr("macEditOnDemandReloadFailed"), systemError.localizedUIString)
+        #endif
         }
     }
 }
@@ -82,6 +92,18 @@ extension PacketTunnelProviderError: WireGuardAppError {
             return (tr("alertTunnelActivationFailureTitle"), tr("alertTunnelActivationFileDescriptorFailureMessage"))
         case .couldNotSetNetworkSettings:
             return (tr("alertTunnelActivationFailureTitle"), tr("alertTunnelActivationSetNetworkSettingsMessage"))
+        #if os(macOS)
+        case .invalidBypassHostnames:
+            return (tr("macBypassHostnames"), tr("macBypassHostnamesInvalid"))
+        case .unsupportedBypassRouting:
+            return (tr("macBypassHostnames"), tr("macBypassRoutingUnsupported"))
+        case .bypassResolutionFailure:
+            return (tr("alertTunnelDNSFailureTitle"), tr("macBypassResolutionFailure"))
+        case .bypassAddressLimitExceeded:
+            return (tr("alertTunnelDNSFailureTitle"), tr("macBypassAddressLimitExceeded"))
+        case .bypassSettingsUnconfirmed:
+            return (tr("alertTunnelActivationFailureTitle"), tr("macBypassSettingsUnconfirmed"))
+        #endif
         }
     }
 }
