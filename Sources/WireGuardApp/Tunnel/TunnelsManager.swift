@@ -52,6 +52,21 @@ class TunnelsManager {
     private var waiteeObservationToken: NSKeyValueObservation?
     private var configurationsObservationToken: NotificationToken?
 
+    #if os(macOS)
+    struct BypassConfigurationStore {
+        var create: (TunnelConfiguration) -> NETunnelProviderProtocol? = { NETunnelProviderProtocol(tunnelConfiguration: $0) }
+        var read: (Data) -> String? = Keychain.openReference
+        var delete: (Data) -> Void = Keychain.deleteReference
+    }
+
+    private var bypassConfigurationStore = BypassConfigurationStore()
+
+    convenience init(tunnelProviders: [NETunnelProviderManager], bypassConfigurationStore: BypassConfigurationStore) {
+        self.init(tunnelProviders: tunnelProviders)
+        self.bypassConfigurationStore = bypassConfigurationStore
+    }
+    #endif
+
     init(tunnelProviders: [NETunnelProviderManager]) {
         tunnels = tunnelProviders.map { TunnelContainer(tunnel: $0) }.sorted {
             TunnelsManager.tunnelNameIsLessThan($0.name, $1.name)
@@ -108,6 +123,10 @@ class TunnelsManager {
                     if let ref = passwordRef {
                         refs.insert(ref)
                     } else {
+                        #if os(macOS)
+                        // Leave the original payload available if moving it to Keychain failed.
+                        if proto.providerConfiguration?["WgQuickConfig"] is String { continue }
+                        #endif
                         wg_log(
                             .info,
                             message:
@@ -167,6 +186,7 @@ class TunnelsManager {
 
     func add(
         tunnelConfiguration: TunnelConfiguration, onDemandOption: ActivateOnDemandOption = .off,
+        bypassHostnames: [String] = [],
         completionHandler: @escaping (Result<TunnelContainer, TunnelsManagerError>) -> Void
     ) {
         let tunnelName = tunnelConfiguration.name ?? ""
@@ -181,7 +201,24 @@ class TunnelsManager {
         }
 
         let tunnelProviderManager = NETunnelProviderManager()
+        #if os(macOS)
+        if !bypassHostnames.isEmpty, !NETunnelProviderProtocol.supportsBypassRouting(for: tunnelConfiguration) {
+            completionHandler(.failure(.invalidBypassPolicy(.unsupportedBypassRouting)))
+            return
+        }
+        #endif
         tunnelProviderManager.setTunnelConfiguration(tunnelConfiguration)
+        #if os(macOS)
+        if !bypassHostnames.isEmpty {
+            guard let proto = tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol else {
+                completionHandler(.failure(.systemErrorOnAddTunnel(
+                    systemError: PacketTunnelProviderError.savedProtocolConfigurationIsInvalid)))
+                return
+            }
+            proto.setBypassHostnames(bypassHostnames)
+            tunnelProviderManager.protocolConfiguration = proto
+        }
+        #endif
         tunnelProviderManager.isEnabled = true
 
         onDemandOption.apply(on: tunnelProviderManager)
@@ -274,6 +311,7 @@ class TunnelsManager {
     func modify(
         tunnel: TunnelContainer, tunnelConfiguration: TunnelConfiguration,
         onDemandOption: ActivateOnDemandOption,
+        bypassHostnames: [String] = [],
         shouldEnsureOnDemandEnabled: Bool = false,
         completionHandler: @escaping (TunnelsManagerError?) -> Void
     ) {
@@ -284,16 +322,32 @@ class TunnelsManager {
         }
 
         let tunnelProviderManager = tunnel.tunnelProvider
+        #if os(macOS)
+        let oldProtocol = tunnelProviderManager.protocolConfiguration as? NETunnelProviderProtocol
+        if !bypassHostnames.isEmpty {
+            guard let oldProtocol = oldProtocol, NETunnelProviderProtocol.supportsBypassRouting(
+                for: tunnelConfiguration, includeAllNetworks: oldProtocol.includeAllNetworks
+            ) else {
+                completionHandler(.invalidBypassPolicy(.unsupportedBypassRouting))
+                return
+            }
+        }
+        let isBypassEdit = oldProtocol?.hasBypassHostnamePolicy == true || !bypassHostnames.isEmpty
+        let applyOnDemand = !isBypassEdit || onDemandOption != tunnel.onDemandOption
+        #else
+        let isBypassEdit = false
+        let applyOnDemand = true
+        #endif
 
         let isIntroducingOnDemandRules =
             (tunnelProviderManager.onDemandRules ?? []).isEmpty && onDemandOption != .off
-        if isIntroducingOnDemandRules && tunnel.status != .inactive
-            && tunnel.status != .deactivating
-        {
+        let isIntroducingOnDemandWhileRunning = isIntroducingOnDemandRules
+            && tunnel.status != .inactive && tunnel.status != .deactivating
+        if isIntroducingOnDemandWhileRunning && !isBypassEdit {
             tunnel.onDeactivated = { [weak self] in
                 self?.modify(
-                    tunnel: tunnel, tunnelConfiguration: tunnelConfiguration,
-                    onDemandOption: onDemandOption, shouldEnsureOnDemandEnabled: true,
+                    tunnel: tunnel, tunnelConfiguration: tunnelConfiguration, onDemandOption: onDemandOption,
+                    bypassHostnames: bypassHostnames, shouldEnsureOnDemandEnabled: true,
                     completionHandler: completionHandler)
             }
             self.startDeactivation(of: tunnel)
@@ -301,6 +355,8 @@ class TunnelsManager {
         } else {
             tunnel.onDeactivated = nil
         }
+        // Save the policy and on-demand rules together before stopping a bypass tunnel.
+        let enableOnDemand = shouldEnsureOnDemandEnabled || (isBypassEdit && isIntroducingOnDemandWhileRunning)
 
         let oldName = tunnelProviderManager.localizedDescription ?? ""
         let isNameChanged = tunnelName != oldName
@@ -309,30 +365,104 @@ class TunnelsManager {
                 completionHandler(TunnelsManagerError.tunnelAlreadyExistsWithThatName)
                 return
             }
+        }
+
+        let isTunnelConfigurationChanged = tunnelProviderManager.tunnelConfiguration != tunnelConfiguration
+        var needsRestart = isTunnelConfigurationChanged
+        #if os(macOS)
+        var updatedProtocol: NETunnelProviderProtocol?
+        var replacementReference: Data?
+        let configurationStore = bypassConfigurationStore
+        let previousOnDemandRules = tunnelProviderManager.onDemandRules
+        let wasOnDemandEnabled = tunnelProviderManager.isOnDemandEnabled
+        let wasEnabled = tunnelProviderManager.isEnabled
+        if let oldProtocol = oldProtocol, isBypassEdit {
+            let policyChanged = (try? oldProtocol.readBypassHostnames()) != bypassHostnames
+            if policyChanged || isTunnelConfigurationChanged {
+                let updated = oldProtocol.copy() as! NETunnelProviderProtocol
+                let payload = tunnelConfiguration.asWgQuickConfig()
+                if isTunnelConfigurationChanged, tunnelProviderManager.tunnelConfiguration?.asWgQuickConfig() != payload {
+                    guard let replacement = configurationStore.create(tunnelConfiguration),
+                          let reference = replacement.passwordReference, reference != oldProtocol.passwordReference else {
+                        completionHandler(.systemErrorOnModifyTunnel(
+                            systemError: PacketTunnelProviderError.savedProtocolConfigurationIsInvalid))
+                        return
+                    }
+                    guard configurationStore.read(reference) == payload else {
+                        configurationStore.delete(reference)
+                        completionHandler(.systemErrorOnModifyTunnel(
+                            systemError: PacketTunnelProviderError.savedProtocolConfigurationIsInvalid))
+                        return
+                    }
+                    replacementReference = reference
+                    updated.passwordReference = reference
+                    updated.serverAddress = replacement.serverAddress
+                    var metadata = updated.providerConfiguration ?? [:]
+                    metadata.removeValue(forKey: "WgQuickConfig")
+                    updated.providerConfiguration = metadata
+                }
+                updated.setBypassHostnames(bypassHostnames)
+                updatedProtocol = updated
+                tunnelProviderManager.protocolConfiguration = updated
+                tunnelProviderManager.localizedDescription = tunnelName
+                needsRestart = needsRestart || policyChanged
+            }
+        } else if isTunnelConfigurationChanged {
+            tunnelProviderManager.setTunnelConfiguration(tunnelConfiguration)
+        }
+        #else
+        if isTunnelConfigurationChanged {
+            tunnelProviderManager.setTunnelConfiguration(tunnelConfiguration)
+        }
+        #endif
+        if isNameChanged {
             tunnel.name = tunnelName
         }
-
-        var isTunnelConfigurationChanged = false
-        if tunnelProviderManager.tunnelConfiguration != tunnelConfiguration {
-            tunnelProviderManager.setTunnelConfiguration(tunnelConfiguration)
-            isTunnelConfigurationChanged = true
+        #if os(macOS)
+        if !isBypassEdit || enableOnDemand {
+            tunnelProviderManager.isEnabled = true
         }
+        #else
         tunnelProviderManager.isEnabled = true
+        #endif
 
         let isActivatingOnDemand =
-            !tunnelProviderManager.isOnDemandEnabled && shouldEnsureOnDemandEnabled
-        onDemandOption.apply(on: tunnelProviderManager)
-        if shouldEnsureOnDemandEnabled {
+            !tunnelProviderManager.isOnDemandEnabled && enableOnDemand
+        if applyOnDemand {
+            onDemandOption.apply(on: tunnelProviderManager)
+        }
+        if enableOnDemand {
             tunnelProviderManager.isOnDemandEnabled = true
         }
 
         tunnelProviderManager.saveToPreferences { [weak self] error in
             if let error = error {
+                #if os(macOS)
+                if isBypassEdit {
+                    tunnelProviderManager.protocolConfiguration = oldProtocol
+                    tunnelProviderManager.localizedDescription = oldName
+                    tunnelProviderManager.onDemandRules = previousOnDemandRules
+                    tunnelProviderManager.isOnDemandEnabled = wasOnDemandEnabled
+                    tunnelProviderManager.isEnabled = wasEnabled
+                    if isNameChanged { tunnel.name = oldName }
+                    if let replacementReference = replacementReference {
+                        configurationStore.delete(replacementReference)
+                    }
+                }
+                #endif
                 // TODO: the passwordReference for the old one has already been removed at this point and we can't easily roll back!
                 wg_log(.error, message: "Modify: Saving configuration failed: \(error)")
                 completionHandler(TunnelsManagerError.systemErrorOnModifyTunnel(systemError: error))
                 return
             }
+            #if os(macOS)
+            if updatedProtocol != nil {
+                tunnelProviderManager.cacheTunnelConfiguration(tunnelConfiguration)
+                if replacementReference != nil, let oldReference = oldProtocol?.passwordReference {
+                    configurationStore.delete(oldReference)
+                }
+            }
+            #endif
             guard let self = self else { return }
             if isNameChanged {
                 let oldIndex = self.tunnels.firstIndex(of: tunnel)!
@@ -345,7 +475,7 @@ class TunnelsManager {
             }
             self.tunnelsListDelegate?.tunnelModified(at: self.tunnels.firstIndex(of: tunnel)!)
 
-            if isTunnelConfigurationChanged {
+            if needsRestart {
                 if tunnel.status == .active || tunnel.status == .activating
                     || tunnel.status == .reasserting
                 {
@@ -365,8 +495,12 @@ class TunnelsManager {
                             .error,
                             message:
                                 "Modify: Re-loading after saving configuration failed: \(error)")
+                        #if os(macOS)
+                        completionHandler(.savedButOnDemandReloadFailed(systemError: error))
+                        #else
                         completionHandler(
                             TunnelsManagerError.systemErrorOnModifyTunnel(systemError: error))
+                        #endif
                     } else {
                         completionHandler(nil)
                     }
@@ -806,6 +940,11 @@ class TunnelContainer: NSObject {
     }
 
     #if os(macOS)
+        var bypassHostnames: [String] {
+            guard let proto = tunnelProvider.protocolConfiguration as? NETunnelProviderProtocol else { return [] }
+            return (try? proto.readBypassHostnames()) ?? []
+        }
+
         var isTunnelAvailableToUser: Bool {
             return (tunnelProvider.protocolConfiguration as? NETunnelProviderProtocol)?
                 .providerConfiguration?["UID"] as? uid_t == getuid()
@@ -1028,6 +1167,10 @@ extension NETunnelProviderManager {
         protocolConfiguration = NETunnelProviderProtocol(
             tunnelConfiguration: tunnelConfiguration, previouslyFrom: protocolConfiguration)
         localizedDescription = tunnelConfiguration.name
+        cacheTunnelConfiguration(tunnelConfiguration)
+    }
+
+    fileprivate func cacheTunnelConfiguration(_ tunnelConfiguration: TunnelConfiguration) {
         objc_setAssociatedObject(
             self, &NETunnelProviderManager.cachedConfigKey, tunnelConfiguration,
             objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN_NONATOMIC)

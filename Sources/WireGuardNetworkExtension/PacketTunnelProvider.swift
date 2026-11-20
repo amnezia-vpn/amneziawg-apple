@@ -13,6 +13,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }()
 
+    #if os(macOS)
+    private let bypassLookup = DNSResolver.BypassLookup()
+    private let bypassActivationLock = NSLock()
+    private var bypassActivation: WireGuardAdapter.HostnameBypassActivation?
+    #endif
 
     private func logAppGroupInfo() {
         let appGroupId = FileManager.appGroupId ?? "nil"
@@ -61,6 +66,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
 
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
+        #if os(macOS)
+        DispatchQueue.main.async {
+            self.bypassActivationLock.withLock { self.bypassActivation?.cancel() }
+            self.bypassLookup.cancel()
+            self.startWithSavedConfiguration(options: options, completionHandler: completionHandler)
+        }
+        #else
+        startWithSavedConfiguration(options: options, completionHandler: completionHandler)
+        #endif
+    }
+
+    private func startWithSavedConfiguration(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
         let activationAttemptId = options?["activationAttemptId"] as? String
         let errorNotifier = ErrorNotifier(activationAttemptId: activationAttemptId)
 
@@ -79,10 +96,84 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
-        logTunnelConfigurationSummary(tunnelConfiguration)
+        #if os(macOS)
+        do {
+            let hostnames = try tunnelProviderProtocol.readBypassHostnames()
+            if !hostnames.isEmpty {
+                guard NETunnelProviderProtocol.supportsBypassRouting(
+                    for: tunnelConfiguration, includeAllNetworks: tunnelProviderProtocol.includeAllNetworks
+                ) else {
+                    throw PacketTunnelProviderError.unsupportedBypassRouting
+                }
+                resolveBypassAndStart(hostnames, configuration: tunnelConfiguration,
+                                      errorNotifier: errorNotifier, completionHandler: completionHandler)
+                return
+            }
+        } catch {
+            let providerError = error as? PacketTunnelProviderError ?? .savedProtocolConfigurationIsInvalid
+            errorNotifier.notify(providerError)
+            completionHandler(providerError)
+            return
+        }
+        #endif
 
-        // Start the tunnel
-        adapter.start(tunnelConfiguration: tunnelConfiguration) { adapterError in
+        startAdapter(tunnelConfiguration, errorNotifier: errorNotifier, completionHandler: completionHandler)
+    }
+
+    #if os(macOS)
+    private func resolveBypassAndStart(
+        _ hostnames: [String], configuration: TunnelConfiguration,
+        errorNotifier: ErrorNotifier, completionHandler: @escaping (Error?) -> Void
+    ) {
+        let activation = WireGuardAdapter.HostnameBypassActivation()
+        bypassActivationLock.withLock { bypassActivation = activation }
+        let finish: (Error?) -> Void = { error in
+            let cancelled = self.bypassActivationLock.withLock {
+                if self.bypassActivation === activation {
+                    self.bypassActivation = nil
+                }
+                return activation.isCancelled
+            }
+            completionHandler(cancelled ? POSIXError(.ECANCELED) : error)
+        }
+        bypassLookup.start(hostnames: hostnames, allowedIPs: configuration.peers[0].allowedIPs,
+                           dnsServers: configuration.interface.dns) { result in
+            guard !activation.isCancelled else {
+                finish(POSIXError(.ECANCELED))
+                return
+            }
+            switch result {
+            case .failure(.cancelled):
+                finish(POSIXError(.ECANCELED))
+            case .failure(.unresolved):
+                wg_log(.error, staticMessage: "Could not resolve all hostname bypass routes")
+                errorNotifier.notify(.bypassResolutionFailure)
+                finish(PacketTunnelProviderError.bypassResolutionFailure)
+            case .failure(.tooManyAddresses):
+                wg_log(.error, staticMessage: "Hostname bypass exceeded its DNS address limit")
+                errorNotifier.notify(.bypassAddressLimitExceeded)
+                finish(PacketTunnelProviderError.bypassAddressLimitExceeded)
+            case .success(let routes):
+                for route in routes where !configuration.peers[0].excludeIPs.contains(route) {
+                    configuration.peers[0].excludeIPs.append(route)
+                }
+                self.startAdapter(configuration, bypassActivation: activation,
+                                  errorNotifier: errorNotifier, completionHandler: finish)
+            }
+        }
+    }
+    #endif
+
+    private func startAdapter(
+        _ tunnelConfiguration: TunnelConfiguration, bypassActivation: WireGuardAdapter.HostnameBypassActivation? = nil,
+        errorNotifier: ErrorNotifier, completionHandler: @escaping (Error?) -> Void
+    ) {
+        logTunnelConfigurationSummary(tunnelConfiguration)
+        let adapterCompleted: (WireGuardAdapterError?) -> Void = { adapterError in
+            if bypassActivation?.isCancelled == true {
+                completionHandler(POSIXError(.ECANCELED))
+                return
+            }
             guard let adapterError = adapterError else {
                 let interfaceName = self.adapter.interfaceName ?? "unknown"
 
@@ -106,6 +197,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 completionHandler(PacketTunnelProviderError.dnsResolutionFailure)
 
             case .setNetworkSettings(let error):
+                #if os(macOS)
+                if bypassActivation != nil, (error as? POSIXError)?.code == .ETIMEDOUT {
+                    wg_log(.error, staticMessage: "Timed out waiting for confirmation of hostname bypass routes")
+                    errorNotifier.notify(.bypassSettingsUnconfirmed)
+                    completionHandler(PacketTunnelProviderError.bypassSettingsUnconfirmed)
+                    return
+                }
+                #endif
                 wg_log(.error, message: "Starting tunnel failed with setTunnelNetworkSettings returning \(error.localizedDescription)")
                 errorNotifier.notify(PacketTunnelProviderError.couldNotSetNetworkSettings)
                 completionHandler(PacketTunnelProviderError.couldNotSetNetworkSettings)
@@ -120,27 +219,59 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
                 fatalError()
             }
         }
+        #if os(macOS)
+        if let bypassActivation = bypassActivation {
+            adapter.startWithHostnameBypass(tunnelConfiguration: tunnelConfiguration, activation: bypassActivation,
+                                            completionHandler: adapterCompleted)
+            return
+        }
+        #endif
+        adapter.start(tunnelConfiguration: tunnelConfiguration, completionHandler: adapterCompleted)
     }
 
     override func
     stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         wg_log(.info, message: "Stopping tunnel, reason=\(reason.rawValue) (\(reason))")
 
-        adapter.stop { error in
-            ErrorNotifier.removeLastErrorFile()
+        #if os(macOS)
+        bypassActivationLock.withLock {
+            let wasCancellingBypass = bypassActivation != nil
+            bypassActivation?.cancel()
+            DispatchQueue.main.async {
+                if self.bypassLookup.cancel() {
+                    self.finishStop(completionHandler: completionHandler)
+                } else {
+                    self.stopAdapter(wasCancellingBypass: wasCancellingBypass, completionHandler: completionHandler)
+                }
+            }
+        }
+        #else
+        stopAdapter(completionHandler: completionHandler)
+        #endif
+    }
 
-            if let error = error {
+    private func stopAdapter(wasCancellingBypass: Bool = false, completionHandler: @escaping () -> Void) {
+        adapter.stop { error in
+            switch error {
+            case .invalidState? where wasCancellingBypass, nil:
+                break
+            case .some(let error):
                 wg_log(.error, message: "Failed to stop WireGuard adapter: \(error.localizedDescription)")
             }
-            completionHandler()
-
-            #if os(macOS)
-            // HACK: This is a filthy hack to work around Apple bug 32073323 (dup'd by us as 47526107).
-            // Remove it when they finally fix this upstream and the fix has been rolled out to
-            // sufficient quantities of users.
-            exit(0)
-            #endif
+            self.finishStop(completionHandler: completionHandler)
         }
+    }
+
+    private func finishStop(completionHandler: () -> Void) {
+        ErrorNotifier.removeLastErrorFile()
+        completionHandler()
+
+        #if os(macOS)
+        // HACK: This is a filthy hack to work around Apple bug 32073323 (dup'd by us as 47526107).
+        // Remove it when they finally fix this upstream and the fix has been rolled out to
+        // sufficient quantities of users.
+        exit(0)
+        #endif
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)? = nil) {

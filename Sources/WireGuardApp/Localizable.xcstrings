@@ -13896,6 +13896,76 @@
         }
       }
     },
+    "macBypassAddressLimitExceeded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DNS returned too many addresses for hostname bypass. Try removing some hostnames from the list."
+          }
+        }
+      }
+    },
+    "macBypassHostnames" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bypass hostnames"
+          }
+        }
+      }
+    },
+    "macBypassHostnamesHelp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hostname bypass requires one peer with an IPv4 or IPv6 default route and Include All Networks off. Enter exact hostnames separated by commas. Clear the field to disable bypass. The app resolves hostnames when connecting. Traffic bypasses by destination IP address, so other domains that share those addresses may also bypass the tunnel. Changing this list reconnects an active tunnel. Reconnecting resolves the hostnames again. Configuration exports omit this list."
+          }
+        }
+      }
+    },
+    "macBypassHostnamesInvalid" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter exact DNS hostnames such as example.com, separated by commas."
+          }
+        }
+      }
+    },
+    "macBypassResolutionFailure" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not resolve usable bypass routes for every hostname. Check the names, your network connection and the tunnel’s DNS servers."
+          }
+        }
+      }
+    },
+    "macBypassRoutingUnsupported" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hostname bypass requires one peer with an IPv4 or IPv6 default route and Include All Networks disabled."
+          }
+        }
+      }
+    },
+    "macBypassSettingsUnconfirmed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The system did not confirm the hostname bypass routes in time. Tunnel startup stopped."
+          }
+        }
+      }
+    },
     "macButtonDeleteTunnels (%d)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -15553,6 +15623,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Discard"
+          }
+        }
+      }
+    },
+    "macEditOnDemandReloadFailed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tunnel saved. On-demand settings could not be reloaded."
           }
         }
       }
