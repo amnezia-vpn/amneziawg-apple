@@ -1,0 +1,365 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: NickVs2015 <nv@amnezia.org>
+Date: Fri, 21 Nov 2026 18:00:00 +0300
+Subject: [PATCH] net/http: auto-tune the HTTP/2 client's stream receive windows
+
+The HTTP/2 client grants every response stream a fixed 4 MiB receive
+window that a bare golang.org/x/net/http2.Transport cannot change. When
+an app reads a proxied connection slowly the server still fills the
+window and the data sits unread in the client, so a dozen stalled XHTTP
+streams exceed the iOS network extension's 50 MB jetsam limit.
+
+A stream now starts at AMNEZIA_H2_STREAM_WINDOW and doubles, up to
+AMNEZIA_H2_STREAM_WINDOW_MAX, each time its reader drains a whole window
+within a second; a slow or stalled reader never grows. Growth above the
+initial window is drawn from the process-wide
+AMNEZIA_H2_WINDOW_GROWTH_BUDGET until the body is closed or read to the
+end. With the variables unset the client is unchanged.
+
+Ported from BodoVPN/releases#19.
+
+---
+diff --git a/src/net/http/internal/http2/flow_test.go b/src/net/http/internal/http2/flow_test.go
+--- a/src/net/http/internal/http2/flow_test.go
++++ b/src/net/http/internal/http2/flow_test.go
+@@ -137,3 +137,50 @@ func TestOutFlowAddOverflow(t *testing.T) {
+ 	}
+ 
+ }
++
++// windowGrowth tests.
++func TestWindowGrowthDoublesToItsMax(t *testing.T) {
++	g := &windowGrowth{max: 256 << 10, budget: 1 << 20}
++	window := int32(64 << 10)
++	var windows []int32
++	for add := g.grow(window, 0); add > 0; add = g.grow(window, 0) {
++		window += add
++		windows = append(windows, window)
++	}
++	if len(windows) != 2 || windows[0] != 128<<10 || windows[1] != 256<<10 {
++		t.Errorf("windows = %v, want [131072 262144]", windows)
++	}
++	if g.used != 192<<10 {
++		t.Errorf("used = %v, want %v", g.used, 192<<10)
++	}
++}
++
++func TestWindowGrowthNeedsAWindowWithinASecond(t *testing.T) {
++	g := &windowGrowth{max: 256 << 10, budget: 1 << 20}
++	if add := g.grow(64<<10, growWithin+1); add != 0 {
++		t.Errorf("grow after a slow window = %v, want 0", add)
++	}
++	if add := g.grow(64<<10, growWithin); add != 64<<10 {
++		t.Errorf("grow after a window in %v = %v, want %v", growWithin, add, 64<<10)
++	}
++}
++
++func TestWindowGrowthStopsAtTheBudgetUntilReleased(t *testing.T) {
++	g := &windowGrowth{max: 1 << 20, budget: 96 << 10}
++	a, b, c := g.grow(64<<10, 0), g.grow(64<<10, 0), g.grow(64<<10, 0)
++	if a != 64<<10 || b != 32<<10 || c != 0 {
++		t.Errorf("grows = %v, %v, %v; want 65536, 32768, 0", a, b, c)
++	}
++	g.release(a)
++	if d := g.grow(64<<10, 0); d != 64<<10 {
++		t.Errorf("grow after a release = %v, want %v", d, 64<<10)
++	}
++}
++
++func TestNilWindowGrowthNeverGrows(t *testing.T) {
++	var g *windowGrowth
++	if add := g.grow(64<<10, 0); add != 0 {
++		t.Errorf("nil grow = %v, want 0", add)
++	}
++	g.release(1)
++}
+diff --git a/src/net/http/internal/http2/transport.go b/src/net/http/internal/http2/transport.go
+--- a/src/net/http/internal/http2/transport.go
++++ b/src/net/http/internal/http2/transport.go
+@@ -27,6 +27,7 @@ import (
+ 	"net/http/internal"
+ 	"net/http/internal/httpcommon"
+ 	"net/textproto"
++	"os"
+ 	"slices"
+ 	"strconv"
+ 	"strings"
+@@ -172,6 +173,7 @@ type ClientConn struct {
+ 	peerMaxHeaderTableSize      uint32
+ 	initialWindowSize           uint32
+ 	initialStreamRecvWindowSize int32
++	windowGrowth                *windowGrowth // nil keeps every stream at its initial window
+ 	readIdleTimeout             time.Duration
+ 	pingTimeout                 time.Duration
+ 	extendedConnectAllowed      bool
+@@ -252,6 +254,10 @@ type clientStream struct {
+ 
+ 	flow        outflow // guarded by cc.mu
+ 	inflow      inflow  // guarded by cc.mu
++	recvWindow  int32   // receive window granted to the peer; guarded by cc.mu
++	grown       int32   // recvWindow above the initial window, held from cc.windowGrowth; guarded by cc.mu
++	readMark    time.Time // when the current window's worth of reading began; guarded by cc.mu
++	readSince   int64     // bytes read since readMark; guarded by cc.mu
+ 	bytesRemain int64   // -1 means unknown; owned by transportResponseBody.Read
+ 	readErr     error   // sticky read error; owned by transportResponseBody.Read
+ 
+@@ -635,6 +641,11 @@ func (t *Transport) newClientConn(c net.Conn, singleUse bool, internalStateHook
+ 		lastActive:                  time.Now(),
+ 		internalStateHook:           internalStateHook,
+ 	}
++	// An iOS network extension sets these; unset keeps the stock client.
++	if n := envInt32("AMNEZIA_H2_STREAM_WINDOW"); n > 0 {
++		cc.initialStreamRecvWindowSize = n
++	}
++	cc.windowGrowth = processWindowGrowth()
+ 	if t.transportTestHooks != nil {
+ 		t.transportTestHooks.newclientconn(cc)
+ 		c = cc.tconn
+@@ -1864,6 +1875,8 @@ func (cc *ClientConn) addStreamLocked(cs *clientStream) {
+ 	cs.flow.add(int32(cc.initialWindowSize))
+ 	cs.flow.setConnFlow(&cc.flow)
+ 	cs.inflow.init(cc.initialStreamRecvWindowSize)
++	cs.recvWindow = cc.initialStreamRecvWindowSize
++	cs.readMark = time.Now()
+ 	cs.ID = cc.nextStreamID
+ 	cc.nextStreamID += 2
+ 	cc.streams[cs.ID] = cs
+@@ -2353,6 +2366,9 @@ func (b transportResponseBody) Read(p []byte) (n int, err error) {
+ 		return 0, cs.readErr
+ 	}
+ 	n, err = b.cs.bufPipe.Read(p)
++	if err != nil {
++		cs.releaseWindowGrowth()
++	}
+ 	if cs.bytesRemain != -1 {
+ 		if int64(n) > cs.bytesRemain {
+ 			n = int(cs.bytesRemain)
+@@ -2380,6 +2396,15 @@ func (b transportResponseBody) Read(p []byte) (n int, err error) {
+ 	var streamAdd int32
+ 	if err == nil { // No need to refresh if the stream is over or failed.
+ 		streamAdd = cs.inflow.add(n)
++		if cs.readSince += int64(n); cc.windowGrowth != nil && cs.readSince >= int64(cs.recvWindow) {
++			now := time.Now()
++			if grow := cc.windowGrowth.grow(cs.recvWindow, now.Sub(cs.readMark)); grow > 0 {
++				cs.recvWindow += grow
++				cs.grown += grow
++				streamAdd += cs.inflow.add(int(grow))
++			}
++			cs.readMark, cs.readSince = now, 0
++		}
+ 	}
+ 	cc.mu.Unlock()
+ 
+@@ -2405,6 +2430,7 @@ func (b transportResponseBody) Close() error {
+ 
+ 	cs.bufPipe.BreakWithError(errClosedResponseBody)
+ 	cs.abortStream(errClosedResponseBody)
++	cs.releaseWindowGrowth()
+ 
+ 	unread := cs.bufPipe.Len()
+ 	if unread > 0 {
+@@ -3215,3 +3241,86 @@ func (t *Transport) dialTLSWithContext(ctx context.Context, network, addr string
+ 	tlsCn := cn.(*tls.Conn) // DialContext comment promises this will always succeed
+ 	return tlsCn, nil
+ }
++
++// Auto-tuned response stream windows. A stream starts at the
++// initial window and doubles, up to max, each time its reader takes a whole window's worth within
++// growWithin: the window, not the reader, is what limits it. A slow or stalled reader never grows.
++// A window granted to the peer can't be taken back, so a stream that grew and then stalls can still
++// buffer all of it; budget bounds that, process-wide: growth above every stream's initial window is
++// held from it until the response body is closed or fully read. Consumed bytes are always credited
++// back, so a spent budget only stops growth and no stream starves.
++type windowGrowth struct {
++	max    int32
++	budget int64
++
++	mu   sync.Mutex
++	used int64
++}
++
++// growWithin is how fast a reader must take a window's worth for the stream to grow. A window-bound
++// stream takes one per round trip, so 1 s covers round trips up to a second; a stream grows only to
++// about its rate times this.
++const growWithin = time.Second
++
++// grow is how much to add to a stream window of size window whose last window's worth was read in
++// elapsed: 0 for a slower reader, at max, or with the budget spent. It is held until release.
++func (g *windowGrowth) grow(window int32, elapsed time.Duration) int32 {
++	if g == nil || window >= g.max || elapsed > growWithin {
++		return 0
++	}
++	add := min(window, g.max-window)
++	g.mu.Lock()
++	defer g.mu.Unlock()
++	if left := g.budget - g.used; int64(add) > left {
++		add = int32(max(left, 0))
++	}
++	g.used += int64(add)
++	return add
++}
++
++func (g *windowGrowth) release(grown int32) {
++	if g == nil || grown == 0 {
++		return
++	}
++	g.mu.Lock()
++	g.used -= int64(grown)
++	g.mu.Unlock()
++}
++
++// releaseWindowGrowth returns the stream's growth to the budget, once.
++func (cs *clientStream) releaseWindowGrowth() {
++	cc := cs.cc
++	cc.mu.Lock()
++	grown := cs.grown
++	cs.grown = 0
++	cc.mu.Unlock()
++	cc.windowGrowth.release(grown)
++}
++
++var processGrowth struct {
++	sync.Mutex
++	g *windowGrowth
++}
++
++// processWindowGrowth is the process's windowGrowth from AMNEZIA_H2_STREAM_WINDOW_MAX and
++// AMNEZIA_H2_WINDOW_GROWTH_BUDGET, shared by every connection; nil while the max is unset.
++func processWindowGrowth() *windowGrowth {
++	maxWindow, budget := envInt32("AMNEZIA_H2_STREAM_WINDOW_MAX"), envInt32("AMNEZIA_H2_WINDOW_GROWTH_BUDGET")
++	if maxWindow <= 0 {
++		return nil
++	}
++	processGrowth.Lock()
++	defer processGrowth.Unlock()
++	if g := processGrowth.g; g == nil || g.max != maxWindow || g.budget != int64(budget) {
++		processGrowth.g = &windowGrowth{max: maxWindow, budget: int64(budget)}
++	}
++	return processGrowth.g
++}
++
++func envInt32(name string) int32 {
++	n, err := strconv.ParseInt(os.Getenv(name), 10, 32)
++	if err != nil || n < 0 {
++		return 0
++	}
++	return int32(n)
++}
+diff --git a/src/net/http/internal/http2/transport_test.go b/src/net/http/internal/http2/transport_test.go
+--- a/src/net/http/internal/http2/transport_test.go
++++ b/src/net/http/internal/http2/transport_test.go
+@@ -5651,3 +5651,114 @@ func testExtendedConnectReadFrameError(t *testing.T) {
+ 		t.Fatalf("after connection closed: RoundTrip succeeded; want error")
+ 	}
+ }
++
++// Auto-tuned stream windows.
++func setWindowGrowthEnv(t *testing.T, window, maxWindow, budget int) {
++	t.Setenv("AMNEZIA_H2_STREAM_WINDOW", strconv.Itoa(window))
++	t.Setenv("AMNEZIA_H2_STREAM_WINDOW_MAX", strconv.Itoa(maxWindow))
++	t.Setenv("AMNEZIA_H2_WINDOW_GROWTH_BUDGET", strconv.Itoa(budget))
++}
++
++// startWindowGrowthStream opens a GET and answers it with a 200, leaving the body to the test.
++func startWindowGrowthStream(t *testing.T, tc *testClientConn) (uint32, io.ReadCloser) {
++	req, _ := http.NewRequest("GET", "https://dummy.tld/", nil)
++	rt := tc.roundTrip(req)
++	tc.wantFrameType(FrameHeaders)
++	tc.writeHeaders(HeadersFrameParam{
++		StreamID:      rt.streamID(),
++		EndHeaders:    true,
++		BlockFragment: tc.makeHeaderBlockFragment(":status", "200"),
++	})
++	rt.wantStatus(200)
++	return rt.streamID(), rt.response().Body
++}
++
++// streamCredit sums the stream's WINDOW_UPDATE increments among the frames the client sent.
++func streamCredit(tc *testClientConn, streamID uint32) uint32 {
++	var credit uint32
++	for f := tc.readFrame(); f != nil; f = tc.readFrame() {
++		if wu, ok := f.(*WindowUpdateFrame); ok && wu.StreamID == streamID {
++			credit += wu.Increment
++		}
++	}
++	return credit
++}
++
++func newWindowGrowthClientConn(t *testing.T) *testClientConn {
++	tc := newTestClientConn(t, func(tr *http.Transport) {
++		tr.HTTP2 = &http.HTTP2Config{MaxReadFrameSize: 16 << 20}
++	})
++	tc.greet()
++	return tc
++}
++
++func TestTransportWindowGrowsWhileTheReaderKeepsUp(t *testing.T) {
++	setWindowGrowthEnv(t, 64<<10, 256<<10, 1<<20)
++	synctest.Test(t, testTransportWindowGrowsWhileTheReaderKeepsUp)
++}
++func testTransportWindowGrowsWhileTheReaderKeepsUp(t *testing.T) {
++	tc := newWindowGrowthClientConn(t)
++	id, body := startWindowGrowthStream(t, tc)
++	// Each round the server fills the window and the user reads it all: the client credits the
++	// bytes read plus the window's growth, doubling it until the max.
++	for _, round := range []struct{ fill, credit int }{
++		{64 << 10, 128 << 10},
++		{128 << 10, 256 << 10},
++		{256 << 10, 256 << 10},
++	} {
++		tc.writeData(id, false, make([]byte, round.fill))
++		if _, err := io.ReadFull(body, make([]byte, round.fill)); err != nil {
++			t.Fatalf("read %v bytes: %v", round.fill, err)
++		}
++		if got := streamCredit(tc, id); got != uint32(round.credit) {
++			t.Errorf("after reading %v bytes the stream got %v bytes of credit, want %v", round.fill, got, round.credit)
++		}
++	}
++}
++
++func TestTransportWindowStaysForAStalledReader(t *testing.T) {
++	setWindowGrowthEnv(t, 64<<10, 256<<10, 1<<20)
++	synctest.Test(t, testTransportWindowStaysForAStalledReader)
++}
++func testTransportWindowStaysForAStalledReader(t *testing.T) {
++	tc := newWindowGrowthClientConn(t)
++	id, body := startWindowGrowthStream(t, tc)
++	tc.writeData(id, false, make([]byte, 64<<10))
++	tc.wantIdle() // nothing read: no credit and no growth
++	// A reader that takes longer than growWithin over its window is slow: credit, no growth.
++	time.Sleep(2 * time.Second)
++	if _, err := io.ReadFull(body, make([]byte, 64<<10)); err != nil {
++		t.Fatalf("read: %v", err)
++	}
++	if got := streamCredit(tc, id); got != 64<<10 {
++		t.Errorf("credit = %v, want %v", got, 64<<10)
++	}
++}
++
++func TestTransportWindowGrowthSharesABudget(t *testing.T) {
++	setWindowGrowthEnv(t, 64<<10, 1<<20, 64<<10)
++	synctest.Test(t, testTransportWindowGrowthSharesABudget)
++}
++func testTransportWindowGrowthSharesABudget(t *testing.T) {
++	tc := newWindowGrowthClientConn(t)
++	a, bodyA := startWindowGrowthStream(t, tc)
++	b, bodyB := startWindowGrowthStream(t, tc)
++	readWindow := func(id uint32, body io.ReadCloser) uint32 {
++		tc.writeData(id, false, make([]byte, 64<<10))
++		if _, err := io.ReadFull(body, make([]byte, 64<<10)); err != nil {
++			t.Fatalf("read stream %v: %v", id, err)
++		}
++		return streamCredit(tc, id)
++	}
++	if got := readWindow(a, bodyA); got != 128<<10 {
++		t.Errorf("stream A credit = %v, want %v (the whole budget)", got, 128<<10)
++	}
++	if got := readWindow(b, bodyB); got != 64<<10 {
++		t.Errorf("stream B credit = %v, want %v (budget spent)", got, 64<<10)
++	}
++	bodyA.Close()
++	streamCredit(tc, a) // drain the RST_STREAM
++	if got := readWindow(b, bodyB); got != 128<<10 {
++		t.Errorf("stream B credit after A closed = %v, want %v", got, 128<<10)
++	}
++}
